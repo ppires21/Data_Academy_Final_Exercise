@@ -1,0 +1,501 @@
+id,nome,categoria,preco,fornecedor
+1,Desporto 1,Desporto,87.01,Worten
+2,Livros 2,Livros,120.41,FNAC Portugal
+3,Vestuário 3,Vestuário,156.29,Sonae Distribuição
+4,Brinquedos 4,Brinquedos,59.45,Sonae Distribuição
+5,Desporto 5,Desporto,334.62,Sonae Distribuição
+6,Livros 6,Livros,38.19,Continente
+7,Casa 7,Casa,12.33,Jerónimo Martins
+8,Desporto 8,Desporto,50.38,FNAC Portugal
+9,Brinquedos 9,Brinquedos,393.49,Jerónimo Martins
+10,Casa 10,Casa,403.79,Pingo Doce
+11,Eletrónica 11,Eletrónica,70.15,FNAC Portugal
+12,Desporto 12,Desporto,362.27,Continente
+13,Brinquedos 13,Brinquedos,21.66,Jerónimo Martins
+14,Livros 14,Livros,408.22,FNAC Portugal
+15,Desporto 15,Desporto,54.33,Pingo Doce
+16,Mercearia 16,Mercearia,96.55,Worten
+17,Mercearia 17,Mercearia,422.09,Continente
+18,Vestuário 18,Vestuário,298.25,Sonae Distribuição
+19,Mercearia 19,Mercearia,89.05,Pingo Doce
+20,Vestuário 20,Vestuário,108.9,Pingo Doce
+21,Brinquedos 21,Brinquedos,164.21,Sonae Distribuição
+22,Brinquedos 22,Brinquedos,169.94,Pingo Doce
+23,Brinquedos 23,Brinquedos,150.27,Leroy Merlin
+24,Livros 24,Livros,29.85,Sonae Distribuição
+25,Mercearia 25,Mercearia,341.44,Worten
+26,Brinquedos 26,Brinquedos,88.37,Worten
+27,Brinquedos 27,Brinquedos,159.01,Leroy Merlin
+28,Brinquedos 28,Brinquedos,31.26,Leroy Merlin
+29,Mercearia 29,Mercearia,345.08,Leroy Merlin
+30,Livros 30,Livros,127.51,Sonae Distribuição
+31,Brinquedos 31,Brinquedos,51.85,Leroy Merlin
+32,Brinquedos 32,Brinquedos,83.26,Sonae Distribuição
+33,Eletrónica 33,Eletrónica,340.22,Pingo Doce
+34,Casa 34,Casa,179.56,Pingo Doce
+35,Brinquedos 35,Brinquedos,388.92,Worten
+36,Livros 36,Livros,411.57,Leroy Merlin
+37,Desporto 37,Desporto,90.57,Jerónimo Martins
+38,Eletrónica 38,Eletrónica,148.68,FNAC Portugal
+39,Brinquedos 39,Brinquedos,494.11,Worten
+40,Brinquedos 40,Brinquedos,219.92,Sonae Distribuição
+41,Vestuário 41,Vestuário,43.92,Worten
+42,Vestuário 42,Vestuário,293.94,Leroy Merlin
+43,Eletrónica 43,Eletrónica,29.17,Sonae Distribuição
+44,Eletrónica 44,Eletrónica,192.65,Jerónimo Martins
+45,Eletrónica 45,Eletrónica,417.22,Continente
+46,Eletrónica 46,Eletrónica,304.98,Pingo Doce
+47,Vestuário 47,Vestuário,382.32,FNAC Portugal
+48,Casa 48,Casa,279.5,Jerónimo Martins
+49,Casa 49,Casa,243.9,Pingo Doce
+50,Brinquedos 50,Brinquedos,93.63,Jerónimo Martins
+51,Livros 51,Livros,338.63,Continente
+52,Mercearia 52,Mercearia,21.25,Continente
+53,Desporto 53,Desporto,459.82,Continente
+54,Mercearia 54,Mercearia,483.64,Pingo Doce
+55,Desporto 55,Desporto,193.73,Leroy Merlin
+56,Brinquedos 56,Brinquedos,334.61,FNAC Portugal
+57,Vestuário 57,Vestuário,108.46,Sonae Distribuição
+58,Eletrónica 58,Eletrónica,434.37,FNAC Portugal
+59,Desporto 59,Desporto,45.02,FNAC Portugal
+60,Desporto 60,Desporto,485.28,Sonae Distribuição
+61,Livros 61,Livros,495.32,FNAC Portugal
+62,Livros 62,Livros,110.2,Jerónimo Martins
+63,Mercearia 63,Mercearia,314.13,Continente
+64,Mercearia 64,Mercearia,16.83,FNAC Portugal
+65,Eletrónica 65,Eletrónica,97.68,Pingo Doce
+66,Brinquedos 66,Brinquedos,469.05,Sonae Distribuição
+67,Brinquedos 67,Brinquedos,277.75,FNAC Portugal
+68,Casa 68,Casa,385.58,Sonae Distribuição
+69,Vestuário 69,Vestuário,370.71,Continente
+70,Eletrónica 70,Eletrónica,18.17,Leroy Merlin
+71,Livros 71,Livros,307.88,Continente
+72,Casa 72,Casa,372.36,Continente
+73,Desporto 73,Desporto,358.03,FNAC Portugal
+74,Desporto 74,Desporto,41.02,Worten
+75,Livros 75,Livros,36.29,Sonae Distribuição
+76,Vestuário 76,Vestuário,457.36,Jerónimo Martins
+77,Brinquedos 77,Brinquedos,134.36,Pingo Doce
+78,Mercearia 78,Mercearia,74.07,Leroy Merlin
+79,Casa 79,Casa,24.34,Sonae Distribuição
+80,Livros 80,Livros,55.88,Worten
+81,Desporto 81,Desporto,274.26,Pingo Doce
+82,Mercearia 82,Mercearia,364.34,Worten
+83,Brinquedos 83,Brinquedos,376.02,Pingo Doce
+84,Brinquedos 84,Brinquedos,356.1,Leroy Merlin
+85,Brinquedos 85,Brinquedos,409.31,Jerónimo Martins
+86,Vestuário 86,Vestuário,102.89,Worten
+87,Desporto 87,Desporto,45.57,Jerónimo Martins
+88,Vestuário 88,Vestuário,53.79,Worten
+89,Eletrónica 89,Eletrónica,490.66,Sonae Distribuição
+90,Casa 90,Casa,375.56,Worten
+91,Eletrónica 91,Eletrónica,458.85,Sonae Distribuição
+92,Casa 92,Casa,205.26,Jerónimo Martins
+93,Mercearia 93,Mercearia,382.95,Leroy Merlin
+94,Brinquedos 94,Brinquedos,341.9,Sonae Distribuição
+95,Mercearia 95,Mercearia,339.32,Jerónimo Martins
+96,Vestuário 96,Vestuário,378.72,Continente
+97,Eletrónica 97,Eletrónica,394.83,Pingo Doce
+98,Eletrónica 98,Eletrónica,255.04,FNAC Portugal
+99,Vestuário 99,Vestuário,181.35,Jerónimo Martins
+100,Livros 100,Livros,320.0,Worten
+101,Desporto 101,Desporto,367.91,Sonae Distribuição
+102,Vestuário 102,Vestuário,158.24,Jerónimo Martins
+103,Mercearia 103,Mercearia,103.82,Pingo Doce
+104,Eletrónica 104,Eletrónica,399.74,FNAC Portugal
+105,Mercearia 105,Mercearia,325.43,Jerónimo Martins
+106,Mercearia 106,Mercearia,316.27,Sonae Distribuição
+107,Mercearia 107,Mercearia,75.95,Worten
+108,Mercearia 108,Mercearia,397.18,Continente
+109,Mercearia 109,Mercearia,228.89,FNAC Portugal
+110,Vestuário 110,Vestuário,369.93,Sonae Distribuição
+111,Mercearia 111,Mercearia,447.65,Jerónimo Martins
+112,Eletrónica 112,Eletrónica,166.63,Sonae Distribuição
+113,Desporto 113,Desporto,96.61,Leroy Merlin
+114,Brinquedos 114,Brinquedos,293.11,Pingo Doce
+115,Casa 115,Casa,308.61,Jerónimo Martins
+116,Livros 116,Livros,381.34,Leroy Merlin
+117,Desporto 117,Desporto,395.88,FNAC Portugal
+118,Mercearia 118,Mercearia,61.01,FNAC Portugal
+119,Eletrónica 119,Eletrónica,206.48,Continente
+120,Casa 120,Casa,199.6,FNAC Portugal
+121,Eletrónica 121,Eletrónica,74.68,Pingo Doce
+122,Brinquedos 122,Brinquedos,216.26,FNAC Portugal
+123,Desporto 123,Desporto,481.09,Sonae Distribuição
+124,Eletrónica 124,Eletrónica,424.24,Sonae Distribuição
+125,Mercearia 125,Mercearia,492.48,Leroy Merlin
+126,Desporto 126,Desporto,163.75,Worten
+127,Desporto 127,Desporto,334.56,Leroy Merlin
+128,Desporto 128,Desporto,93.93,Continente
+129,Mercearia 129,Mercearia,371.73,Leroy Merlin
+130,Casa 130,Casa,454.08,Worten
+131,Desporto 131,Desporto,169.52,Jerónimo Martins
+132,Desporto 132,Desporto,129.24,Sonae Distribuição
+133,Vestuário 133,Vestuário,158.26,Pingo Doce
+134,Casa 134,Casa,450.6,Continente
+135,Brinquedos 135,Brinquedos,166.65,Jerónimo Martins
+136,Desporto 136,Desporto,14.85,Leroy Merlin
+137,Livros 137,Livros,159.04,Jerónimo Martins
+138,Brinquedos 138,Brinquedos,433.44,FNAC Portugal
+139,Desporto 139,Desporto,180.11,Pingo Doce
+140,Desporto 140,Desporto,19.15,Leroy Merlin
+141,Livros 141,Livros,150.98,Jerónimo Martins
+142,Eletrónica 142,Eletrónica,9.43,Pingo Doce
+143,Eletrónica 143,Eletrónica,306.04,Jerónimo Martins
+144,Casa 144,Casa,419.3,Pingo Doce
+145,Mercearia 145,Mercearia,146.6,Jerónimo Martins
+146,Vestuário 146,Vestuário,249.43,FNAC Portugal
+147,Livros 147,Livros,56.18,Pingo Doce
+148,Eletrónica 148,Eletrónica,138.4,Leroy Merlin
+149,Desporto 149,Desporto,335.41,Continente
+150,Eletrónica 150,Eletrónica,444.71,Pingo Doce
+151,Casa 151,Casa,10.12,Pingo Doce
+152,Eletrónica 152,Eletrónica,197.73,Worten
+153,Brinquedos 153,Brinquedos,71.36,Jerónimo Martins
+154,Desporto 154,Desporto,490.44,Jerónimo Martins
+155,Desporto 155,Desporto,94.56,Pingo Doce
+156,Vestuário 156,Vestuário,348.28,Pingo Doce
+157,Casa 157,Casa,219.76,Continente
+158,Desporto 158,Desporto,465.64,Jerónimo Martins
+159,Brinquedos 159,Brinquedos,15.74,Worten
+160,Casa 160,Casa,57.77,Worten
+161,Casa 161,Casa,222.78,FNAC Portugal
+162,Vestuário 162,Vestuário,324.69,Worten
+163,Casa 163,Casa,90.39,Pingo Doce
+164,Mercearia 164,Mercearia,452.11,FNAC Portugal
+165,Casa 165,Casa,437.59,Leroy Merlin
+166,Casa 166,Casa,211.75,Continente
+167,Desporto 167,Desporto,283.39,Pingo Doce
+168,Desporto 168,Desporto,73.35,Pingo Doce
+169,Casa 169,Casa,435.28,Jerónimo Martins
+170,Desporto 170,Desporto,172.43,FNAC Portugal
+171,Brinquedos 171,Brinquedos,41.7,Leroy Merlin
+172,Eletrónica 172,Eletrónica,358.38,FNAC Portugal
+173,Vestuário 173,Vestuário,113.18,FNAC Portugal
+174,Vestuário 174,Vestuário,157.5,Jerónimo Martins
+175,Desporto 175,Desporto,129.67,FNAC Portugal
+176,Brinquedos 176,Brinquedos,157.74,Worten
+177,Livros 177,Livros,65.86,Continente
+178,Casa 178,Casa,424.16,Worten
+179,Livros 179,Livros,383.12,Pingo Doce
+180,Eletrónica 180,Eletrónica,213.93,Sonae Distribuição
+181,Brinquedos 181,Brinquedos,234.69,Pingo Doce
+182,Eletrónica 182,Eletrónica,223.47,Pingo Doce
+183,Livros 183,Livros,102.28,Jerónimo Martins
+184,Desporto 184,Desporto,191.78,FNAC Portugal
+185,Vestuário 185,Vestuário,334.7,Pingo Doce
+186,Brinquedos 186,Brinquedos,410.81,Leroy Merlin
+187,Livros 187,Livros,71.15,Leroy Merlin
+188,Eletrónica 188,Eletrónica,202.85,Jerónimo Martins
+189,Casa 189,Casa,94.63,Jerónimo Martins
+190,Mercearia 190,Mercearia,464.26,FNAC Portugal
+191,Livros 191,Livros,317.12,FNAC Portugal
+192,Mercearia 192,Mercearia,491.66,Continente
+193,Casa 193,Casa,121.73,Pingo Doce
+194,Vestuário 194,Vestuário,171.21,Pingo Doce
+195,Eletrónica 195,Eletrónica,101.78,FNAC Portugal
+196,Mercearia 196,Mercearia,194.76,Continente
+197,Livros 197,Livros,444.03,Jerónimo Martins
+198,Brinquedos 198,Brinquedos,365.21,FNAC Portugal
+199,Desporto 199,Desporto,420.03,Pingo Doce
+200,Desporto 200,Desporto,176.01,Leroy Merlin
+201,Vestuário 201,Vestuário,138.1,Sonae Distribuição
+202,Mercearia 202,Mercearia,199.52,Continente
+203,Eletrónica 203,Eletrónica,376.98,Worten
+204,Eletrónica 204,Eletrónica,402.61,Worten
+205,Livros 205,Livros,333.97,Leroy Merlin
+206,Eletrónica 206,Eletrónica,200.29,Jerónimo Martins
+207,Eletrónica 207,Eletrónica,465.8,Jerónimo Martins
+208,Desporto 208,Desporto,368.33,FNAC Portugal
+209,Eletrónica 209,Eletrónica,118.89,Sonae Distribuição
+210,Desporto 210,Desporto,34.29,Worten
+211,Livros 211,Livros,126.93,Worten
+212,Desporto 212,Desporto,308.7,Pingo Doce
+213,Desporto 213,Desporto,409.56,Leroy Merlin
+214,Vestuário 214,Vestuário,302.77,Leroy Merlin
+215,Livros 215,Livros,480.29,Worten
+216,Brinquedos 216,Brinquedos,23.47,Pingo Doce
+217,Livros 217,Livros,276.87,Continente
+218,Eletrónica 218,Eletrónica,223.88,FNAC Portugal
+219,Vestuário 219,Vestuário,192.57,Pingo Doce
+220,Brinquedos 220,Brinquedos,133.24,Worten
+221,Casa 221,Casa,278.63,Worten
+222,Vestuário 222,Vestuário,299.57,Worten
+223,Casa 223,Casa,394.89,Worten
+224,Vestuário 224,Vestuário,49.04,Pingo Doce
+225,Brinquedos 225,Brinquedos,461.71,Pingo Doce
+226,Vestuário 226,Vestuário,477.64,FNAC Portugal
+227,Eletrónica 227,Eletrónica,423.91,Worten
+228,Casa 228,Casa,469.66,Jerónimo Martins
+229,Vestuário 229,Vestuário,344.5,Jerónimo Martins
+230,Vestuário 230,Vestuário,199.4,Pingo Doce
+231,Brinquedos 231,Brinquedos,491.86,FNAC Portugal
+232,Eletrónica 232,Eletrónica,124.17,Worten
+233,Brinquedos 233,Brinquedos,337.44,Worten
+234,Eletrónica 234,Eletrónica,400.4,Pingo Doce
+235,Vestuário 235,Vestuário,82.05,Continente
+236,Casa 236,Casa,72.87,FNAC Portugal
+237,Vestuário 237,Vestuário,230.55,Leroy Merlin
+238,Desporto 238,Desporto,296.39,Sonae Distribuição
+239,Desporto 239,Desporto,484.18,Pingo Doce
+240,Livros 240,Livros,239.79,Jerónimo Martins
+241,Brinquedos 241,Brinquedos,477.99,Jerónimo Martins
+242,Vestuário 242,Vestuário,240.5,FNAC Portugal
+243,Brinquedos 243,Brinquedos,48.97,FNAC Portugal
+244,Eletrónica 244,Eletrónica,167.69,Leroy Merlin
+245,Vestuário 245,Vestuário,458.31,Pingo Doce
+246,Desporto 246,Desporto,352.23,Leroy Merlin
+247,Vestuário 247,Vestuário,401.47,Worten
+248,Vestuário 248,Vestuário,15.07,Pingo Doce
+249,Mercearia 249,Mercearia,81.48,Pingo Doce
+250,Casa 250,Casa,360.08,Sonae Distribuição
+251,Livros 251,Livros,442.72,Jerónimo Martins
+252,Mercearia 252,Mercearia,484.41,Jerónimo Martins
+253,Desporto 253,Desporto,140.17,Sonae Distribuição
+254,Eletrónica 254,Eletrónica,210.17,FNAC Portugal
+255,Vestuário 255,Vestuário,249.68,Worten
+256,Casa 256,Casa,110.52,Pingo Doce
+257,Vestuário 257,Vestuário,130.66,Continente
+258,Vestuário 258,Vestuário,374.32,Worten
+259,Mercearia 259,Mercearia,325.46,Pingo Doce
+260,Brinquedos 260,Brinquedos,63.25,FNAC Portugal
+261,Casa 261,Casa,466.09,Pingo Doce
+262,Mercearia 262,Mercearia,97.52,FNAC Portugal
+263,Eletrónica 263,Eletrónica,454.04,Continente
+264,Brinquedos 264,Brinquedos,162.42,Pingo Doce
+265,Desporto 265,Desporto,412.75,Pingo Doce
+266,Livros 266,Livros,365.57,Sonae Distribuição
+267,Casa 267,Casa,267.69,Continente
+268,Livros 268,Livros,321.76,Jerónimo Martins
+269,Casa 269,Casa,384.38,Continente
+270,Mercearia 270,Mercearia,375.51,FNAC Portugal
+271,Brinquedos 271,Brinquedos,468.85,Continente
+272,Mercearia 272,Mercearia,167.39,Jerónimo Martins
+273,Brinquedos 273,Brinquedos,447.12,Jerónimo Martins
+274,Livros 274,Livros,77.27,Sonae Distribuição
+275,Casa 275,Casa,326.5,Pingo Doce
+276,Casa 276,Casa,286.04,Jerónimo Martins
+277,Livros 277,Livros,485.84,FNAC Portugal
+278,Casa 278,Casa,413.15,FNAC Portugal
+279,Vestuário 279,Vestuário,213.83,Jerónimo Martins
+280,Vestuário 280,Vestuário,486.18,Pingo Doce
+281,Brinquedos 281,Brinquedos,350.29,Jerónimo Martins
+282,Eletrónica 282,Eletrónica,52.46,Pingo Doce
+283,Eletrónica 283,Eletrónica,53.48,FNAC Portugal
+284,Casa 284,Casa,110.78,Continente
+285,Brinquedos 285,Brinquedos,139.88,Jerónimo Martins
+286,Mercearia 286,Mercearia,488.78,Jerónimo Martins
+287,Mercearia 287,Mercearia,16.95,Worten
+288,Eletrónica 288,Eletrónica,347.36,Jerónimo Martins
+289,Vestuário 289,Vestuário,91.71,Leroy Merlin
+290,Mercearia 290,Mercearia,153.04,Continente
+291,Eletrónica 291,Eletrónica,58.05,Continente
+292,Vestuário 292,Vestuário,7.84,Worten
+293,Desporto 293,Desporto,87.75,Worten
+294,Vestuário 294,Vestuário,131.77,Leroy Merlin
+295,Eletrónica 295,Eletrónica,244.15,FNAC Portugal
+296,Eletrónica 296,Eletrónica,326.91,Continente
+297,Casa 297,Casa,88.56,FNAC Portugal
+298,Vestuário 298,Vestuário,11.99,Continente
+299,Vestuário 299,Vestuário,483.77,Jerónimo Martins
+300,Desporto 300,Desporto,147.68,FNAC Portugal
+301,Livros 301,Livros,189.24,FNAC Portugal
+302,Casa 302,Casa,147.86,Sonae Distribuição
+303,Desporto 303,Desporto,271.71,Jerónimo Martins
+304,Desporto 304,Desporto,25.58,Pingo Doce
+305,Livros 305,Livros,135.23,Leroy Merlin
+306,Casa 306,Casa,104.27,Continente
+307,Brinquedos 307,Brinquedos,87.78,Pingo Doce
+308,Mercearia 308,Mercearia,443.97,Jerónimo Martins
+309,Casa 309,Casa,260.17,Jerónimo Martins
+310,Eletrónica 310,Eletrónica,475.59,Pingo Doce
+311,Casa 311,Casa,92.01,Worten
+312,Casa 312,Casa,221.88,Pingo Doce
+313,Brinquedos 313,Brinquedos,9.76,Leroy Merlin
+314,Brinquedos 314,Brinquedos,97.14,FNAC Portugal
+315,Vestuário 315,Vestuário,293.57,Continente
+316,Brinquedos 316,Brinquedos,350.62,Worten
+317,Vestuário 317,Vestuário,68.62,Pingo Doce
+318,Eletrónica 318,Eletrónica,55.08,Leroy Merlin
+319,Livros 319,Livros,486.98,FNAC Portugal
+320,Mercearia 320,Mercearia,249.5,Leroy Merlin
+321,Brinquedos 321,Brinquedos,271.39,Worten
+322,Livros 322,Livros,394.89,FNAC Portugal
+323,Brinquedos 323,Brinquedos,282.14,Continente
+324,Vestuário 324,Vestuário,23.68,Continente
+325,Eletrónica 325,Eletrónica,324.26,Jerónimo Martins
+326,Brinquedos 326,Brinquedos,269.09,Pingo Doce
+327,Livros 327,Livros,250.56,Worten
+328,Livros 328,Livros,397.35,Worten
+329,Livros 329,Livros,154.6,Continente
+330,Brinquedos 330,Brinquedos,91.99,FNAC Portugal
+331,Casa 331,Casa,93.71,Pingo Doce
+332,Eletrónica 332,Eletrónica,35.6,Jerónimo Martins
+333,Mercearia 333,Mercearia,367.99,Leroy Merlin
+334,Vestuário 334,Vestuário,116.85,Worten
+335,Eletrónica 335,Eletrónica,293.29,FNAC Portugal
+336,Vestuário 336,Vestuário,373.08,Sonae Distribuição
+337,Vestuário 337,Vestuário,82.07,Jerónimo Martins
+338,Brinquedos 338,Brinquedos,291.45,Pingo Doce
+339,Brinquedos 339,Brinquedos,485.49,Pingo Doce
+340,Casa 340,Casa,43.92,Continente
+341,Livros 341,Livros,281.2,FNAC Portugal
+342,Casa 342,Casa,266.91,Worten
+343,Casa 343,Casa,225.51,FNAC Portugal
+344,Desporto 344,Desporto,249.41,Jerónimo Martins
+345,Mercearia 345,Mercearia,464.33,Sonae Distribuição
+346,Casa 346,Casa,357.86,Continente
+347,Casa 347,Casa,216.14,Sonae Distribuição
+348,Eletrónica 348,Eletrónica,351.26,Worten
+349,Vestuário 349,Vestuário,380.39,FNAC Portugal
+350,Mercearia 350,Mercearia,401.46,Pingo Doce
+351,Vestuário 351,Vestuário,387.91,Sonae Distribuição
+352,Desporto 352,Desporto,82.69,Jerónimo Martins
+353,Brinquedos 353,Brinquedos,239.35,Pingo Doce
+354,Mercearia 354,Mercearia,143.4,Worten
+355,Vestuário 355,Vestuário,479.1,FNAC Portugal
+356,Brinquedos 356,Brinquedos,261.46,Leroy Merlin
+357,Desporto 357,Desporto,168.69,Jerónimo Martins
+358,Casa 358,Casa,85.82,FNAC Portugal
+359,Desporto 359,Desporto,294.98,Leroy Merlin
+360,Livros 360,Livros,386.36,FNAC Portugal
+361,Desporto 361,Desporto,256.62,Worten
+362,Livros 362,Livros,252.35,Pingo Doce
+363,Livros 363,Livros,43.16,Pingo Doce
+364,Eletrónica 364,Eletrónica,77.72,FNAC Portugal
+365,Desporto 365,Desporto,326.85,Leroy Merlin
+366,Livros 366,Livros,299.75,Sonae Distribuição
+367,Livros 367,Livros,51.6,Pingo Doce
+368,Eletrónica 368,Eletrónica,82.82,Jerónimo Martins
+369,Livros 369,Livros,46.53,Pingo Doce
+370,Mercearia 370,Mercearia,431.8,Leroy Merlin
+371,Livros 371,Livros,48.31,FNAC Portugal
+372,Livros 372,Livros,33.22,Leroy Merlin
+373,Vestuário 373,Vestuário,436.33,Leroy Merlin
+374,Eletrónica 374,Eletrónica,405.76,Pingo Doce
+375,Desporto 375,Desporto,482.21,Leroy Merlin
+376,Eletrónica 376,Eletrónica,76.41,Pingo Doce
+377,Vestuário 377,Vestuário,422.07,Leroy Merlin
+378,Vestuário 378,Vestuário,106.7,Worten
+379,Vestuário 379,Vestuário,256.19,Pingo Doce
+380,Eletrónica 380,Eletrónica,219.7,Pingo Doce
+381,Brinquedos 381,Brinquedos,156.72,FNAC Portugal
+382,Brinquedos 382,Brinquedos,314.26,Continente
+383,Eletrónica 383,Eletrónica,362.11,Leroy Merlin
+384,Vestuário 384,Vestuário,268.64,Leroy Merlin
+385,Brinquedos 385,Brinquedos,264.59,Leroy Merlin
+386,Vestuário 386,Vestuário,473.36,Pingo Doce
+387,Casa 387,Casa,127.86,Sonae Distribuição
+388,Vestuário 388,Vestuário,148.95,Leroy Merlin
+389,Eletrónica 389,Eletrónica,180.17,Jerónimo Martins
+390,Desporto 390,Desporto,471.15,Sonae Distribuição
+391,Mercearia 391,Mercearia,432.87,Worten
+392,Brinquedos 392,Brinquedos,495.64,Pingo Doce
+393,Desporto 393,Desporto,290.83,Jerónimo Martins
+394,Desporto 394,Desporto,275.23,FNAC Portugal
+395,Eletrónica 395,Eletrónica,128.97,FNAC Portugal
+396,Vestuário 396,Vestuário,361.96,Pingo Doce
+397,Desporto 397,Desporto,54.66,Jerónimo Martins
+398,Livros 398,Livros,103.33,Continente
+399,Vestuário 399,Vestuário,31.76,Sonae Distribuição
+400,Livros 400,Livros,187.13,Pingo Doce
+401,Casa 401,Casa,287.38,Pingo Doce
+402,Mercearia 402,Mercearia,338.51,Continente
+403,Desporto 403,Desporto,329.86,Leroy Merlin
+404,Desporto 404,Desporto,403.65,Pingo Doce
+405,Casa 405,Casa,140.24,FNAC Portugal
+406,Desporto 406,Desporto,199.25,Sonae Distribuição
+407,Brinquedos 407,Brinquedos,28.66,Continente
+408,Mercearia 408,Mercearia,367.05,Sonae Distribuição
+409,Eletrónica 409,Eletrónica,239.32,Worten
+410,Mercearia 410,Mercearia,355.53,FNAC Portugal
+411,Mercearia 411,Mercearia,255.48,Sonae Distribuição
+412,Desporto 412,Desporto,428.55,Pingo Doce
+413,Mercearia 413,Mercearia,425.04,Sonae Distribuição
+414,Desporto 414,Desporto,416.19,Sonae Distribuição
+415,Eletrónica 415,Eletrónica,360.71,Worten
+416,Desporto 416,Desporto,127.26,Worten
+417,Casa 417,Casa,358.96,Jerónimo Martins
+418,Mercearia 418,Mercearia,222.21,FNAC Portugal
+419,Vestuário 419,Vestuário,101.13,Continente
+420,Desporto 420,Desporto,458.11,Sonae Distribuição
+421,Vestuário 421,Vestuário,184.78,Sonae Distribuição
+422,Desporto 422,Desporto,210.37,Worten
+423,Vestuário 423,Vestuário,169.14,Pingo Doce
+424,Desporto 424,Desporto,303.15,FNAC Portugal
+425,Desporto 425,Desporto,475.04,Continente
+426,Mercearia 426,Mercearia,286.52,Jerónimo Martins
+427,Casa 427,Casa,466.92,Continente
+428,Eletrónica 428,Eletrónica,432.26,Jerónimo Martins
+429,Vestuário 429,Vestuário,275.08,Leroy Merlin
+430,Casa 430,Casa,273.31,Pingo Doce
+431,Vestuário 431,Vestuário,115.7,Leroy Merlin
+432,Vestuário 432,Vestuário,21.24,Leroy Merlin
+433,Mercearia 433,Mercearia,402.91,Pingo Doce
+434,Brinquedos 434,Brinquedos,400.79,Sonae Distribuição
+435,Desporto 435,Desporto,177.04,FNAC Portugal
+436,Brinquedos 436,Brinquedos,226.98,Leroy Merlin
+437,Brinquedos 437,Brinquedos,144.98,FNAC Portugal
+438,Livros 438,Livros,413.81,Leroy Merlin
+439,Livros 439,Livros,375.27,FNAC Portugal
+440,Vestuário 440,Vestuário,240.59,Sonae Distribuição
+441,Livros 441,Livros,78.65,Leroy Merlin
+442,Desporto 442,Desporto,404.38,FNAC Portugal
+443,Brinquedos 443,Brinquedos,123.42,Worten
+444,Eletrónica 444,Eletrónica,46.31,Pingo Doce
+445,Desporto 445,Desporto,146.94,Jerónimo Martins
+446,Vestuário 446,Vestuário,390.56,Sonae Distribuição
+447,Vestuário 447,Vestuário,305.34,Leroy Merlin
+448,Desporto 448,Desporto,381.76,Sonae Distribuição
+449,Livros 449,Livros,365.22,Leroy Merlin
+450,Eletrónica 450,Eletrónica,216.65,FNAC Portugal
+451,Livros 451,Livros,312.27,Worten
+452,Eletrónica 452,Eletrónica,24.74,Worten
+453,Vestuário 453,Vestuário,350.39,Pingo Doce
+454,Mercearia 454,Mercearia,356.11,Worten
+455,Eletrónica 455,Eletrónica,152.68,Jerónimo Martins
+456,Desporto 456,Desporto,488.69,Pingo Doce
+457,Mercearia 457,Mercearia,412.56,Continente
+458,Vestuário 458,Vestuário,177.37,Leroy Merlin
+459,Mercearia 459,Mercearia,399.19,Leroy Merlin
+460,Livros 460,Livros,195.96,Leroy Merlin
+461,Brinquedos 461,Brinquedos,400.46,Worten
+462,Brinquedos 462,Brinquedos,156.17,Leroy Merlin
+463,Livros 463,Livros,349.3,Sonae Distribuição
+464,Brinquedos 464,Brinquedos,5.66,Worten
+465,Desporto 465,Desporto,139.42,Worten
+466,Livros 466,Livros,5.45,FNAC Portugal
+467,Mercearia 467,Mercearia,167.78,FNAC Portugal
+468,Casa 468,Casa,176.23,Sonae Distribuição
+469,Casa 469,Casa,42.07,FNAC Portugal
+470,Livros 470,Livros,205.83,Leroy Merlin
+471,Brinquedos 471,Brinquedos,330.85,FNAC Portugal
+472,Mercearia 472,Mercearia,148.57,Sonae Distribuição
+473,Livros 473,Livros,7.89,Worten
+474,Mercearia 474,Mercearia,258.87,Jerónimo Martins
+475,Vestuário 475,Vestuário,380.22,Sonae Distribuição
+476,Casa 476,Casa,77.06,Leroy Merlin
+477,Desporto 477,Desporto,36.33,Continente
+478,Casa 478,Casa,394.31,FNAC Portugal
+479,Mercearia 479,Mercearia,49.1,Sonae Distribuição
+480,Brinquedos 480,Brinquedos,263.31,Jerónimo Martins
+481,Mercearia 481,Mercearia,81.27,Pingo Doce
+482,Casa 482,Casa,39.18,Continente
+483,Vestuário 483,Vestuário,436.03,Leroy Merlin
+484,Brinquedos 484,Brinquedos,274.92,Sonae Distribuição
+485,Eletrónica 485,Eletrónica,162.87,Jerónimo Martins
+486,Eletrónica 486,Eletrónica,83.52,Pingo Doce
+487,Eletrónica 487,Eletrónica,277.11,Leroy Merlin
+488,Vestuário 488,Vestuário,397.02,Leroy Merlin
+489,Brinquedos 489,Brinquedos,206.42,Worten
+490,Desporto 490,Desporto,405.67,Leroy Merlin
+491,Casa 491,Casa,254.63,Pingo Doce
+492,Desporto 492,Desporto,47.3,Jerónimo Martins
+493,Vestuário 493,Vestuário,48.11,Continente
+494,Casa 494,Casa,75.28,Continente
+495,Desporto 495,Desporto,24.24,FNAC Portugal
+496,Mercearia 496,Mercearia,315.42,Sonae Distribuição
+497,Eletrónica 497,Eletrónica,59.06,Sonae Distribuição
+498,Brinquedos 498,Brinquedos,139.7,Sonae Distribuição
+499,Vestuário 499,Vestuário,477.66,Sonae Distribuição
+500,Livros 500,Livros,254.38,Leroy Merlin

@@ -1,0 +1,7 @@
+Starting data validation...
+
+[OK] Finished validating customers.csv
+[OK] Finished validating products.csv
+[OK] Finished validating transactions.csv
+
+Validation complete.
