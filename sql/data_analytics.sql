@@ -1,85 +1,83 @@
--- sql/basic_analytics.sql
--- Basic Analytics for Iteration 1 (PostgreSQL)
--- These queries assume three tables: customers, products, transactions.
+-- sql/data_analytics.sql
+-- 📊 Análises Básicas — Iteração 2 (PostgreSQL, esquema normalizado)
+-- Tabelas: clientes, produtos, transacoes, transacao_itens
 
--- 1) Top 10 customers by total spending
---    Total spending = sum(quantity * price) across all their transactions.
-WITH line_revenue AS (
+-- 1️⃣ Top 10 clientes por valor total gasto
+--     Valor total = soma(quantidade * preco_unitario) em todas as suas transações.
+WITH receita_linha AS (
   SELECT
-    t.id AS transaction_id,
-    t.customer_id,
-    (t.quantity * p.price) AS revenue
-  FROM transactions t
-  JOIN products p ON p.id = t.product_id
+    ti.id_transacao,
+    t.id_cliente,
+    (ti.quantidade * ti.preco_unitario) AS receita
+  FROM transacao_itens ti
+  JOIN transacoes t ON t.id = ti.id_transacao
 )
 SELECT
-  c.id AS customer_id,
-  c.name AS customer_name,
+  c.id AS id_cliente,
+  c.nome AS nome_cliente,
   c.email,
-  c.country,
-  ROUND(SUM(lr.revenue)::numeric, 2) AS total_spent
-FROM line_revenue lr
-JOIN customers c ON c.id = lr.customer_id
-GROUP BY c.id, c.name, c.email, c.country
-ORDER BY total_spent DESC
+  c.distrito,
+  ROUND(SUM(r.receita)::numeric, 2) AS total_gasto
+FROM receita_linha r
+JOIN clientes c ON c.id = r.id_cliente
+GROUP BY c.id, c.nome, c.email, c.distrito
+ORDER BY total_gasto DESC
 LIMIT 10;
 
--- 2) Best-selling products by category (by units sold)
---    Uses a window function to pick the #1 per category.
-WITH product_units AS (
+-- 2️⃣ Produtos mais vendidos por categoria (por unidades vendidas)
+--     Usa uma função de janela para escolher o #1 por categoria.
+WITH unidades_produto AS (
   SELECT
-    p.category,
-    p.id AS product_id,
-    p.name AS product_name,
-    SUM(t.quantity) AS units_sold
-  FROM transactions t
-  JOIN products p ON p.id = t.product_id
-  GROUP BY p.category, p.id, p.name
+    p.categoria,
+    p.id AS id_produto,
+    p.nome AS nome_produto,
+    SUM(ti.quantidade) AS unidades_vendidas
+  FROM transacao_itens ti
+  JOIN produtos p ON p.id = ti.id_produto
+  GROUP BY p.categoria, p.id, p.nome
 ),
-ranked AS (
+classificados AS (
   SELECT
-    category,
-    product_id,
-    product_name,
-    units_sold,
-    RANK() OVER (PARTITION BY category ORDER BY units_sold DESC, product_name ASC) AS rnk
-  FROM product_units
+    categoria,
+    id_produto,
+    nome_produto,
+    unidades_vendidas,
+    RANK() OVER (PARTITION BY categoria ORDER BY unidades_vendidas DESC, nome_produto ASC) AS posicao
+  FROM unidades_produto
 )
-SELECT category, product_id, product_name, units_sold
-FROM ranked
-WHERE rnk = 1
-ORDER BY category;
+SELECT categoria, id_produto, nome_produto, unidades_vendidas
+FROM classificados
+WHERE posicao = 1
+ORDER BY categoria;
 
--- If you want “top N per category”, change WHERE rnk = 1 to WHERE rnk <= N.
-
--- 3) Monthly revenue trends
---    Buckets by month using date_trunc and sums revenue.
+-- 3️⃣ Tendências mensais de receita
+--     Agrupa por mês e soma a receita total (com base em preco_unitario).
 SELECT
-  date_trunc('month', t.timestamp) AS month,
-  ROUND(SUM(t.quantity * p.price)::numeric, 2) AS revenue
-FROM transactions t
-JOIN products p ON p.id = t.product_id
+  date_trunc('month', t.data_hora) AS mes,
+  ROUND(SUM(ti.quantidade * ti.preco_unitario)::numeric, 2) AS receita
+FROM transacoes t
+JOIN transacao_itens ti ON ti.id_transacao = t.id
 GROUP BY 1
 ORDER BY 1;
 
--- 4) Average order value (AOV) by country
---    AOV = total revenue / number of orders.
---    Here we treat each row in `transactions` as a separate order id (t.id).
-WITH orders AS (
+-- 4️⃣ Valor médio por encomenda (AOV) por distrito
+--     AOV = receita total / número de encomendas.
+--     Cada transação (t.id) pode ter vários itens.
+WITH encomendas AS (
   SELECT
-    t.id AS order_id,
-    c.country,
-    SUM(t.quantity * p.price) AS order_revenue
-  FROM transactions t
-  JOIN products p ON p.id = t.product_id
-  JOIN customers c ON c.id = t.customer_id
-  GROUP BY t.id, c.country
+    t.id AS id_encomenda,
+    c.distrito,
+    SUM(ti.quantidade * ti.preco_unitario) AS receita_encomenda
+  FROM transacoes t
+  JOIN clientes c ON c.id = t.id_cliente
+  JOIN transacao_itens ti ON ti.id_transacao = t.id
+  GROUP BY t.id, c.distrito
 )
 SELECT
-  country,
-  ROUND(AVG(order_revenue)::numeric, 2) AS average_order_value,
-  COUNT(*) AS num_orders,
-  ROUND(SUM(order_revenue)::numeric, 2) AS total_revenue
-FROM orders
-GROUP BY country
-ORDER BY average_order_value DESC;
+  distrito,
+  ROUND(AVG(receita_encomenda)::numeric, 2) AS valor_medio_encomenda,
+  COUNT(*) AS num_encomendas,
+  ROUND(SUM(receita_encomenda)::numeric, 2) AS receita_total
+FROM encomendas
+GROUP BY distrito
+ORDER BY valor_medio_encomenda DESC;

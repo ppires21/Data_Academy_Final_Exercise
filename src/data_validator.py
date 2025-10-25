@@ -50,24 +50,40 @@ def validate_csv(filename):
                 if value == "" or value is None:
                     log(f"[{filename}] Row {row_num}: Null value in '{field}'")
 
-            # Specific file checks
-            if filename == "customers.csv":
-                if not is_valid_email(row["email"]):
-                    log(f"[{filename}] Row {row_num}: Invalid email '{row['email']}'")
-                if not is_valid_date(row["registration_date"]):
-                    log(f"[{filename}] Row {row_num}: Invalid date '{row['registration_date']}'")
+            # Specific file checks (Portuguese field names)
+            if filename == "clientes.csv":
+                if not is_valid_email(row.get("email", "")):
+                    log(f"[{filename}] Row {row_num}: Invalid email '{row.get('email')}'")
+                if not is_valid_date(row.get("data_registo", "")):
+                    log(f"[{filename}] Row {row_num}: Invalid date '{row.get('data_registo')}'")
 
-            elif filename == "products.csv":
+            elif filename == "produtos.csv":
                 try:
-                    price = float(row["price"])
+                    price = float(row.get("preco", "nan"))
                     if price <= 0:
                         log(f"[{filename}] Row {row_num}: Non-positive price '{price}'")
                 except ValueError:
-                    log(f"[{filename}] Row {row_num}: Invalid price '{row['price']}'")
+                    log(f"[{filename}] Row {row_num}: Invalid price '{row.get('preco')}'")
 
-            elif filename == "transactions.csv":
-                if not is_valid_date(row["timestamp"]):
-                    log(f"[{filename}] Row {row_num}: Invalid timestamp '{row['timestamp']}'")
+            elif filename == "transacoes.csv":
+                if not is_valid_date(row.get("data_hora", "")):
+                    log(f"[{filename}] Row {row_num}: Invalid timestamp '{row.get('data_hora')}'")
+
+            elif filename == "transacao_itens.csv":
+                # quantidade
+                try:
+                    q = int(row.get("quantidade", "0"))
+                    if q <= 0:
+                        log(f"[{filename}] Row {row_num}: Non-positive quantity '{q}'")
+                except ValueError:
+                    log(f"[{filename}] Row {row_num}: Invalid quantity '{row.get('quantidade')}'")
+                # preco_unitario
+                try:
+                    pu = float(row.get("preco_unitario", "nan"))
+                    if pu <= 0:
+                        log(f"[{filename}] Row {row_num}: Non-positive unit price '{pu}'")
+                except ValueError:
+                    log(f"[{filename}] Row {row_num}: Invalid unit price '{row.get('preco_unitario')}'")
 
             row_num += 1
 
@@ -78,7 +94,7 @@ def main():
     open(log_file, "w").close()  # Clear previous log
     log("Starting data validation...\n")
 
-    for filename in ["customers.csv", "products.csv", "transactions.csv"]:
+    for filename in ["clientes.csv", "produtos.csv", "transacoes.csv", "transacao_itens.csv"]:
         validate_csv(filename)
 
     log("\nValidation complete.")

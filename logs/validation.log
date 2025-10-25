@@ -1,7 +1,8 @@
 Starting data validation...
 
-[OK] Finished validating customers.csv
-[OK] Finished validating products.csv
-[OK] Finished validating transactions.csv
+[OK] Finished validating clientes.csv
+[OK] Finished validating produtos.csv
+[OK] Finished validating transacoes.csv
+[OK] Finished validating transacao_itens.csv
 
 Validation complete.
