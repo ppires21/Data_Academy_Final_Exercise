@@ -1,33 +1,28 @@
 # =========================================
 # File: .github/workflows/ci-cd.yml
-# Purpose: CI/CD pipeline
-#   - CI: lint (black), static analysis (pylint), tests (pytest), security (bandit)
-#   - CD: Terraform apply (IAM/SNS/alarms/schedule), deploy Step Functions from YAML
-# Requirements:
-#   - GitHub secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
-#   - Optional secrets: ALERT_EMAIL (for SNS subscription)
+# Purpose: CI/CD pipeline with import fixes for pylint
 # =========================================
 
-name: ci-cd                                     # Workflow name shown in GitHub UI
+name: ci-cd
 
-on:                                            # Triggers for the workflow
-  push:                                        # Run on pushes
-    branches: [ main ]                         # Only on main branch
-  pull_request:                                # And on PRs
-    branches: [ main ]                         # Targeting main
-  workflow_dispatch:                           # Allow manual runs
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
-env:                                           # Global env vars for all jobs
-  PYTHON_VERSION: "3.12"                       # Python version used in jobs
-  TERRAFORM_DIR: "infrastructure/terraform"    # Path to Terraform code
-  STATE_MACHINE_NAME: "shopflow-daily-batch"   # Step Functions name used by CD
-  STATE_MACHINE_DEF: "workflows/state_machine.yaml"  # YAML definition file path
+env:
+  PYTHON_VERSION: "3.12"
+  TERRAFORM_DIR: "infrastructure/terraform"
+  STATE_MACHINE_NAME: "shopflow-daily-batch"
+  STATE_MACHINE_DEF: "workflows/state_machine.yaml"
 
 jobs:
 
-  # ===========================
-  #   Continuous Integration
-  # ===========================
+  # ------------------------------
+  # Continuous Integration (CI)
+  # ------------------------------
   ci:
     runs-on: ubuntu-latest
     steps:
@@ -52,7 +47,8 @@ jobs:
 
       - name: Static analysis (pylint)
         env:
-          PYTHONPATH: ${{ github.workspace }}/src   # ✅ FIX: makes imports like config.config_loader work
+          # ✅ Add both repo root and src folder to Python path
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
         run: |
           pylint --errors-only src || (echo "Fix pylint errors" && exit 1)
 
@@ -63,14 +59,14 @@ jobs:
       - name: Run tests (pytest)
         env:
           ENV: dev
-          PYTHONPATH: ${{ github.workspace }}/src   # ✅ Also needed for imports inside tests
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"  # ✅ same fix for tests
         run: |
           pytest -q
 
 
-  # ===========================
-  #   Continuous Deployment
-  # ===========================
+  # ------------------------------
+  # Continuous Deployment (CD)
+  # ------------------------------
   cd:
     needs: ci
     runs-on: ubuntu-latest
