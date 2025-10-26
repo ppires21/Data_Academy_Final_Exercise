@@ -23,83 +23,93 @@ env:                                           # Global env vars for all jobs
   STATE_MACHINE_NAME: "shopflow-daily-batch"   # Step Functions name used by CD
   STATE_MACHINE_DEF: "workflows/state_machine.yaml"  # YAML definition file path
 
-jobs:                                          # CI and CD jobs
+jobs:
 
-  ci:                                          # Continuous Integration job
-    runs-on: ubuntu-latest                     # GitHub-hosted Linux runner
-    steps:                                     # Steps executed in this job
+  # ===========================
+  #   Continuous Integration
+  # ===========================
+  ci:
+    runs-on: ubuntu-latest
+    steps:
 
-      - name: Checkout repository              # 1) Pull source code
-        uses: actions/checkout@v4              #    Use official checkout action
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Python                    # 2) Install Python
-        uses: actions/setup-python@v5          #    Official Python setup action
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}  #    Use env-defined version
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies             # 3) Install project + dev deps
-        run: |                                 #    Multi-line shell commands
+      - name: Install dependencies
+        run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install black pylint pytest bandit
 
-      - name: Lint (black)                     # 4) Code style check
-        run: |                                 #    --check: do not reformat, just fail if needed
+      - name: Lint (black)
+        run: |
           black --check src scripts || (echo "Run: black src scripts" && exit 1)
 
-      - name: Static analysis (pylint)         # 5) Code quality
-        run: |                                 #    --errors-only keeps signal short
+      - name: Static analysis (pylint)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src   # ✅ FIX: makes imports like config.config_loader work
+        run: |
           pylint --errors-only src || (echo "Fix pylint errors" && exit 1)
 
-      - name: Security scan (bandit)           # 6) Security scanning
-        run: |                                 #    -r: recursive; -q: quiet errors only
+      - name: Security scan (bandit)
+        run: |
           bandit -r src -q || (echo "Fix bandit findings" && exit 1)
 
-      - name: Run tests (pytest)               # 7) Unit/integration tests
-        env:                                   #    Env vars for DB if tests require
+      - name: Run tests (pytest)
+        env:
           ENV: dev
-        run: |                                 #    Discover & run tests
+          PYTHONPATH: ${{ github.workspace }}/src   # ✅ Also needed for imports inside tests
+        run: |
           pytest -q
 
-  cd:                                          # Continuous Deployment job
-    needs: ci                                  # Run CD only if CI passed
-    runs-on: ubuntu-latest                     # Linux runner
-    permissions:                               # Permissions to write OIDC token to AWS
-      id-token: write                          # Required for AWS auth action
-      contents: read                           # Needed by checkout
-    steps:
 
-      - name: Checkout repository              # 1) Pull source
+  # ===========================
+  #   Continuous Deployment
+  # ===========================
+  cd:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials        # 2) Federate to AWS using OIDC (recommended)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}   # IAM role ARN to assume (set in secrets)
-          aws-region: ${{ secrets.AWS_REGION }}               # AWS region (set in secrets)
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Terraform init/plan/apply        # 3) Provision/update IAM, SNS, alarms, schedule
-        working-directory: ${{ env.TERRAFORM_DIR }}           # Run inside terraform dir
-        run: |                                                 # Init/plan/apply with auto-approve for CD
+      - name: Terraform init/plan/apply
+        working-directory: ${{ env.TERRAFORM_DIR }}
+        run: |
           terraform init
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
 
-      - name: Install yq                       # 4) Install yq to convert YAML → JSON
-        run: |                                 #    yq is a portable YAML CLI
+      - name: Install yq
+        run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Convert ASL YAML → JSON          # 5) Prepare definition for Step Functions API
-        run: |                                 #    -o=json: output JSON
+      - name: Convert ASL YAML → JSON
+        run: |
           yq -o=json '.' "${{ env.STATE_MACHINE_DEF }}" > /tmp/state_machine.json
           echo "Converted YAML to JSON at /tmp/state_machine.json"
 
-      - name: Create/Update Step Function      # 6) Deploy state machine definition
-        env:                                   #    Inputs for state machine
-          STATE_MACHINE_ARN: ${{ secrets.STATE_MACHINE_ARN }}   # Existing ARN or leave empty to create
-          STATE_MACHINE_ROLE_ARN: ${{ secrets.SFN_ROLE_ARN }}   # IAM role for state machine to use
-        run: |                                 # Use AWS CLI to upsert definition
+      - name: Create/Update Step Function
+        env:
+          STATE_MACHINE_ARN: ${{ secrets.STATE_MACHINE_ARN }}
+          STATE_MACHINE_ROLE_ARN: ${{ secrets.SFN_ROLE_ARN }}
+        run: |
           if [ -z "$STATE_MACHINE_ARN" ]; then
             aws stepfunctions create-state-machine \
               --name "${{ env.STATE_MACHINE_NAME }}" \
@@ -112,8 +122,8 @@ jobs:                                          # CI and CD jobs
               --role-arn "$STATE_MACHINE_ROLE_ARN"
           fi
 
-      - name: Tag release                      # 7) Create a lightweight tag for visibility
-        if: github.ref == 'refs/heads/main'    #    Only on main
-        run: |                                 #    Tag name with short SHA
+      - name: Tag release
+        if: github.ref == 'refs/heads/main'
+        run: |
           git tag -f "deploy-${GITHUB_SHA::7}"
           git push -f origin "deploy-${GITHUB_SHA::7}"
