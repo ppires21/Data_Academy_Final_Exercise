@@ -17,8 +17,12 @@ def save_csv(filename, data, headers):
         headers (list[str]): Cabeçalhos do ficheiro
     """
     try:
-        os.makedirs(os.path.dirname(filename), exist_ok=True)  # Cria diretório, se não existir
-        with open(filename, "w", newline="", encoding="utf-8") as f:  # Abre o ficheiro para escrita
+        os.makedirs(
+            os.path.dirname(filename), exist_ok=True
+        )  # Cria diretório, se não existir
+        with open(
+            filename, "w", newline="", encoding="utf-8"
+        ) as f:  # Abre o ficheiro para escrita
             writer = csv.DictWriter(f, fieldnames=headers)
             writer.writeheader()
             writer.writerows(data)  # Escreve os dados
@@ -39,29 +43,79 @@ def generate_data():
     try:
         # --- Listas de apoio ---
         first_names = [
-            "Ana", "Bruno", "Carla", "Diogo", "Eduardo", "Filipa", "Gonçalo",
-            "Helena", "Inês", "João", "Luís", "Marta", "Nuno", "Patrícia", "Rui",
-            "Sara", "Tiago", "Vera", "Pedro",
+            "Ana",
+            "Bruno",
+            "Carla",
+            "Diogo",
+            "Eduardo",
+            "Filipa",
+            "Gonçalo",
+            "Helena",
+            "Inês",
+            "João",
+            "Luís",
+            "Marta",
+            "Nuno",
+            "Patrícia",
+            "Rui",
+            "Sara",
+            "Tiago",
+            "Vera",
+            "Pedro",
         ]
         last_names = [
-            "Silva", "Santos", "Ferreira", "Pereira", "Oliveira", "Costa", "Rodrigues",
-            "Martins", "Jesus", "Sousa", "Fernandes", "Gonçalves", "Almeida", "Ribeiro", "Pires",
+            "Silva",
+            "Santos",
+            "Ferreira",
+            "Pereira",
+            "Oliveira",
+            "Costa",
+            "Rodrigues",
+            "Martins",
+            "Jesus",
+            "Sousa",
+            "Fernandes",
+            "Gonçalves",
+            "Almeida",
+            "Ribeiro",
+            "Pires",
         ]
         countries = ["Portugal"]
         districts = [
-            "Lisboa", "Porto", "Braga", "Coimbra", "Faro", "Setúbal", "Aveiro",
-            "Leiria", "Viseu", "Évora",
+            "Lisboa",
+            "Porto",
+            "Braga",
+            "Coimbra",
+            "Faro",
+            "Setúbal",
+            "Aveiro",
+            "Leiria",
+            "Viseu",
+            "Évora",
         ]
         categories = [
-            "Eletrónica", "Livros", "Vestuário", "Casa",
-            "Brinquedos", "Mercearia", "Desporto",
+            "Eletrónica",
+            "Livros",
+            "Vestuário",
+            "Casa",
+            "Brinquedos",
+            "Mercearia",
+            "Desporto",
         ]
         suppliers = [
-            "Sonae Distribuição", "Jerónimo Martins", "FNAC Portugal",
-            "Worten", "Continente", "Pingo Doce", "Leroy Merlin",
+            "Sonae Distribuição",
+            "Jerónimo Martins",
+            "FNAC Portugal",
+            "Worten",
+            "Continente",
+            "Pingo Doce",
+            "Leroy Merlin",
         ]
         payment_methods = [
-            "Cartão de Crédito", "MB Way", "Transferência Bancária", "PayPal",
+            "Cartão de Crédito",
+            "MB Way",
+            "Transferência Bancária",
+            "PayPal",
         ]
 
         # --- Gerar clientes ---
@@ -146,7 +200,11 @@ def generate_data():
         save_csv("data/raw/clientes.csv", customers, customers[0].keys())
         save_csv("data/raw/produtos.csv", products, products[0].keys())
         save_csv("data/raw/transacoes.csv", transactions, transactions[0].keys())
-        save_csv("data/raw/transacao_itens.csv", transaction_items, transaction_items[0].keys())
+        save_csv(
+            "data/raw/transacao_itens.csv",
+            transaction_items,
+            transaction_items[0].keys(),
+        )
 
         print("✅ Dados portugueses gerados com sucesso!")
 
