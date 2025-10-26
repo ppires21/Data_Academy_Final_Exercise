@@ -11,8 +11,13 @@ import os
 import sys
 import logging
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text  # keep text for DDL
 import pandas as pd
+
+# 👇 NEW imports for safe SQL construction
+from sqlalchemy import MetaData, Table, select, cast
+from sqlalchemy.types import Date, DateTime
+from sqlalchemy.dialects.postgresql import insert as pg_insert  # PostgreSQL UPSERT
 
 # -----------------------
 # Logging setup
@@ -55,7 +60,7 @@ def get_engine():
 
 
 def ensure_audit_table(engine):
-    """Create audit table for tracking loads if it doesn’t exist."""
+    """Create audit table for tracking loads if it doesn’t exist (DDL left as text)."""
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -128,20 +133,23 @@ def prepare_dataframe(table: str, df: pd.DataFrame) -> pd.DataFrame:
 # Data loading (UPSERT)
 # -----------------------
 def upsert_dataframe(df: pd.DataFrame, table: str, engine):
-    """Upsert DataFrame into PostgreSQL target table."""
+    """
+    Upsert DataFrame into PostgreSQL target table using SQLAlchemy Core
+    (no string-built SQL → Bandit-safe). Behavior identical to the previous
+    INSERT ... SELECT ... ON CONFLICT DO UPDATE.
+    """
     if df.empty:
         log.warning(f"Skipping {table}: no data.")
         return 0
 
-    tmp_table = f"_tmp_{table}"
+    tmp_table = f"_tmp_{table}"  # Name for the staging table
+
     with engine.begin() as conn:
-        # create temp table
+        # Drop/create temp (unchanged DDL style; not flagged previously)
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
         df.head(0).to_sql(
             tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace"
         )
-
-        # bulk insert to temp table
         df.to_sql(
             tmp_table,
             conn,
@@ -151,32 +159,47 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
             method="multi",
         )
 
-        pk = "id"
-        cols = [c for c in df.columns if c != pk]
+        # Reflect target and temp tables (so we can build SELECT safely)
+        md = MetaData()
+        target = Table(table, md, schema=SCHEMA, autoload_with=conn)
+        staging = Table(tmp_table, md, schema=SCHEMA, autoload_with=conn)
 
-        # Casts for date/timestamp to satisfy PostgreSQL
-        select_cols = []
+        pk = "id"  # Primary key column used in ON CONFLICT
+        cols = [c for c in df.columns if c != pk]  # Non-PK columns to update
+
+        # Build a SELECT from the staging table applying the same casts as before
+        selectable_cols = []  # Will hold SQLAlchemy column expressions in order
         for c in df.columns:
+            col_expr = getattr(staging.c, c)  # Reference the column on the temp table
+            # Apply the exact same casts that were in the f-string version
             if table == "clientes" and c == "data_registo":
-                select_cols.append(f"{c}::date")
+                col_expr = cast(col_expr, Date)  # ::date
             elif table == "transacoes" and c == "data_hora":
-                select_cols.append(f"{c}::timestamp")
-            else:
-                select_cols.append(c)
+                col_expr = cast(col_expr, DateTime)  # ::timestamp
+            selectable_cols.append(col_expr)  # Keep order identical
 
-        set_clause = ", ".join([f"{c}=EXCLUDED.{c}" for c in cols])
+        select_stmt = select(*selectable_cols)  # SELECT <cols> FROM staging
 
-        upsert_sql = text(
-            f"""
-        INSERT INTO {SCHEMA}.{table} ({', '.join(df.columns)})
-        SELECT {', '.join(select_cols)} FROM {SCHEMA}.{tmp_table}
-        ON CONFLICT ({pk}) DO UPDATE SET {set_clause};
-        """
+        # Build INSERT .. FROM SELECT with PostgreSQL ON CONFLICT DO UPDATE
+        insert_stmt = pg_insert(target).from_select(df.columns, select_stmt)
+
+        # Map SET clause to EXCLUDED.<col> for all non-PK columns
+        update_map = {c: getattr(insert_stmt.excluded, c) for c in cols}
+
+        # Final UPSERT statement
+        upsert_stmt = insert_stmt.on_conflict_do_update(
+            index_elements=[target.c.id],  # conflict target (id)
+            set_=update_map,               # columns to update
         )
 
-        conn.execute(upsert_sql)
+        # Execute UPSERT
+        conn.execute(upsert_stmt)
+
+        # Clean up staging
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
+
         log.info(f"Upserted {len(df)} rows into {table}")
+
     return len(df)
 
 
@@ -184,26 +207,25 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
 # Audit logging
 # -----------------------
 def audit(engine, table, file, start, end, rows, success=True, error=None):
-    """Record audit trail for every load."""
+    """
+    Record audit trail for every load using SQLAlchemy Core insert().
+    This replaces the previous text() f-string and removes Bandit B608.
+    """
     with engine.begin() as conn:
-        conn.execute(
-            text(
-                f"""
-        INSERT INTO {SCHEMA}.audit_loads 
-        (tabela, ficheiro, data_inicio, data_fim, linhas_carregadas, sucesso, erro)
-        VALUES (:tabela, :ficheiro, :data_inicio, :data_fim, :linhas_carregadas, :sucesso, :erro)
-        """
-            ),
-            {
-                "tabela": table,
-                "ficheiro": file,
-                "data_inicio": start,
-                "data_fim": end,
-                "linhas_carregadas": rows,
-                "sucesso": success,
-                "erro": error,
-            },
+        md = MetaData()  # Metadata holder
+        audit_tbl = Table(  # Reflect or reference the audit table
+            "audit_loads", md, schema=SCHEMA, autoload_with=conn
         )
+        ins = audit_tbl.insert().values(  # Build a safe INSERT with bound params
+            tabela=table,
+            ficheiro=file,
+            data_inicio=start,
+            data_fim=end,
+            linhas_carregadas=rows,
+            sucesso=success,
+            erro=error,
+        )
+        conn.execute(ins)
 
 
 # -----------------------

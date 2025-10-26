@@ -18,7 +18,9 @@ import json
 import logging
 from datetime import datetime, timedelta
 import pandas as pd
-from sqlalchemy import create_engine, text
+
+# 🔁 NEW: import SQLAlchemy Core objects to build queries safely (no f-strings in SQL)
+from sqlalchemy import create_engine, text, MetaData, Table, select, bindparam
 
 from config.config_loader import (
     get_config,
@@ -70,18 +72,29 @@ def _fetch_increment(engine, since: datetime) -> pd.DataFrame:
     Overlap window handles late-arriving data by re-reading a small recent period.
     """
     window_start = since - timedelta(days=LATE_WINDOW_DAYS)  # Compute overlap start
-    # Query only rows with data_hora >= window_start (covers late arrivals)
-    q = text(
-        f"""
-        SELECT id, id_cliente, data_hora, metodo_pagamento, version_timestamp
-        FROM {SCHEMA}.transacoes
-        WHERE data_hora >= :window_start
-        ORDER BY data_hora ASC
-    """
-    )  # Parameterized SQL
-    df = pd.read_sql(
-        q, engine, params={"window_start": window_start}
-    )  # Read into DataFrame
+
+    # 🔁 CHANGED: build a safe SQLAlchemy Select instead of an f-string.
+    # - MetaData() holds table definitions for reflection
+    # - Table('transacoes', ..., autoload_with=engine) reflects columns from DB
+    # - select(...) creates SELECT id, id_cliente, data_hora, metodo_pagamento, version_timestamp
+    # - bindparam('window_start') creates a named parameter for the WHERE clause
+    # - No schema/table names are interpolated into a string; Bandit B608 is satisfied.
+    meta = MetaData()
+    transacoes = Table("transacoes", meta, schema=SCHEMA, autoload_with=engine)
+    stmt = (
+        select(
+            transacoes.c.id,
+            transacoes.c.id_cliente,
+            transacoes.c.data_hora,
+            transacoes.c.metodo_pagamento,
+            transacoes.c.version_timestamp,
+        )
+        .where(transacoes.c.data_hora >= bindparam("window_start"))
+        .order_by(transacoes.c.data_hora.asc())
+    )
+
+    # pandas can execute a SQLAlchemy Select; pass the parameter safely
+    df = pd.read_sql(stmt, engine, params={"window_start": window_start})
     return df  # Return increment batch
 
 

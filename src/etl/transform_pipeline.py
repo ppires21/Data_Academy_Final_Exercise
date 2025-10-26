@@ -16,7 +16,10 @@ import pandas as pd  # Core data manipulation library
 from sqlalchemy import (
     create_engine,
     text,
-)  # SQLAlchemy for DB connections and SQL execution
+    MetaData,  # 🔁 NEW: for table reflection in updates
+    Table,     # 🔁 NEW: reflected table for safe UPDATE
+    update,    # 🔁 NEW: SQLAlchemy Core UPDATE
+)
 import boto3  # AWS SDK to extract CSVs from S3
 from botocore.exceptions import BotoCoreError, ClientError  # S3 error handling
 import sys
@@ -100,18 +103,12 @@ def extract_from_db(engine) -> Dict[str, pd.DataFrame]:
     """
     log.info("Extracting from Database (RDS)…")  # Log extraction start
 
-    # Define simple SELECTs for each table in the normalized schema (using cfg["db_schema"])
+    # 🔁 CHANGED: avoid f-string SQL by using read_sql_table with schema=
     schema = cfg["db_schema"]  # Source normalized schema
-    q_clientes = f"SELECT * FROM {schema}.clientes"  # Query customers
-    q_produtos = f"SELECT * FROM {schema}.produtos"  # Query products
-    q_transacoes = f"SELECT * FROM {schema}.transacoes"  # Query transactions
-    q_itens = f"SELECT * FROM {schema}.transacao_itens"  # Query transaction items
-
-    # Read each query into a DataFrame
-    clientes = pd.read_sql(q_clientes, engine)  # Load customers DF
-    produtos = pd.read_sql(q_produtos, engine)  # Load products DF
-    transacoes = pd.read_sql(q_transacoes, engine)  # Load transactions DF
-    itens = pd.read_sql(q_itens, engine)  # Load transaction items DF
+    clientes = pd.read_sql_table("clientes", engine, schema=schema)    # customers
+    produtos = pd.read_sql_table("produtos", engine, schema=schema)    # products
+    transacoes = pd.read_sql_table("transacoes", engine, schema=schema)  # transactions
+    itens = pd.read_sql_table("transacao_itens", engine, schema=schema)  # items
 
     # Return dictionary keyed by entity
     return {
@@ -324,10 +321,8 @@ def scd2_upsert_dim_products(engine, source_products: pd.DataFrame):
             )
         )  # Define SCD2 structure with composite PK
 
-    # Read current dimension snapshot
-    current_dim = pd.read_sql(
-        f"SELECT * FROM {WAREHOUSE_SCHEMA}.dim_products", engine
-    )  # Load existing dim
+    # 🔁 CHANGED: use read_sql_table instead of f-string SELECT
+    current_dim = pd.read_sql_table("dim_products", ENGINE, schema=WAREHOUSE_SCHEMA)
     now = datetime.utcnow()  # Use UTC timestamp for validity windows
 
     # If dimension empty, insert all as current versions
@@ -367,17 +362,17 @@ def scd2_upsert_dim_products(engine, source_products: pd.DataFrame):
 
     # Close current versions for changed products
     with engine.begin() as conn:  # Transaction for updates/inserts
+        # 🔁 CHANGED: build a safe UPDATE via SQLAlchemy Core instead of f-string
+        meta = MetaData()
+        dim = Table("dim_products", meta, schema=WAREHOUSE_SCHEMA, autoload_with=conn)
+
         for pid in changed_price["id"].unique():  # For each product whose price changed
-            conn.execute(
-                text(
-                    f"""
-                UPDATE {WAREHOUSE_SCHEMA}.dim_products
-                SET end_date = :now, is_current = FALSE
-                WHERE id = :pid AND is_current = TRUE
-            """
-                ),
-                {"now": now, "pid": int(pid)},
-            )  # Set end_date and flip is_current
+            stmt = (
+                update(dim)
+                .where(dim.c.id == int(pid), dim.c.is_current == True)
+                .values(end_date=now, is_current=False)  # bound values are safe
+            )
+            conn.execute(stmt)
 
         # Insert new current versions for changed products
         if not changed_price.empty:
