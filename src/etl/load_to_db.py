@@ -189,7 +189,7 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
         # Final UPSERT statement
         upsert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=[target.c.id],  # conflict target (id)
-            set_=update_map,               # columns to update
+            set_=update_map,  # columns to update
         )
 
         # Execute UPSERT

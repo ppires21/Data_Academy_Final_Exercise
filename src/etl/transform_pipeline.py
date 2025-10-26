@@ -17,8 +17,8 @@ from sqlalchemy import (
     create_engine,
     text,
     MetaData,  # 🔁 NEW: for table reflection in updates
-    Table,     # 🔁 NEW: reflected table for safe UPDATE
-    update,    # 🔁 NEW: SQLAlchemy Core UPDATE
+    Table,  # 🔁 NEW: reflected table for safe UPDATE
+    update,  # 🔁 NEW: SQLAlchemy Core UPDATE
 )
 import boto3  # AWS SDK to extract CSVs from S3
 from botocore.exceptions import BotoCoreError, ClientError  # S3 error handling
@@ -105,8 +105,8 @@ def extract_from_db(engine) -> Dict[str, pd.DataFrame]:
 
     # 🔁 CHANGED: avoid f-string SQL by using read_sql_table with schema=
     schema = cfg["db_schema"]  # Source normalized schema
-    clientes = pd.read_sql_table("clientes", engine, schema=schema)    # customers
-    produtos = pd.read_sql_table("produtos", engine, schema=schema)    # products
+    clientes = pd.read_sql_table("clientes", engine, schema=schema)  # customers
+    produtos = pd.read_sql_table("produtos", engine, schema=schema)  # products
     transacoes = pd.read_sql_table("transacoes", engine, schema=schema)  # transactions
     itens = pd.read_sql_table("transacao_itens", engine, schema=schema)  # items
 
