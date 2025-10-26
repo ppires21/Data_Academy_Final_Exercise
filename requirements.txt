@@ -1,0 +1,11 @@
+# =========================================
+# 📄 File: requirements.txt
+# Purpose: Libraries required by your pipeline
+# =========================================
+
+pandas                     # Data handling for ETL
+SQLAlchemy>=2.0            # ORM/engine for DB
+psycopg2-binary            # PostgreSQL driver
+PyYAML                     # YAML parsing (config loader)
+boto3                      # AWS SDK (S3 uploads)
+python-dotenv              # (Optional) load .env files for local dev convenience

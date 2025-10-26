@@ -1,0 +1,20 @@
+# =========================================
+# 📄 File: config/dev.yaml
+# Purpose: Development environment configuration in YAML (as the exercise requires)
+# =========================================
+
+environment: dev                      # Human-readable environment name; used by logs and validation
+debug: true                           # Enables verbose behavior (e.g., SQLAlchemy echo)
+log_level: DEBUG                      # Python logging level for development
+db_schema: public                     # Database schema to use locally (your tables live here)
+aws_region: eu-central-1              # AWS region used by clients like boto3 (Frankfurt)
+
+s3_bucket: ctw04557-ppires-academy-finalexercise-bucket-dev
+# ^ S3 bucket name for DEV uploads (separate from prod to avoid mixing data)
+
+database:                             # Nested DB configuration block (kept simple & explicit)
+  host: localhost                     # Where PostgreSQL is running (localhost in development)
+  port: 5432                          # Default PostgreSQL port
+  name: shopflow_db                   # Local database name you created
+  user: ${PGUSER}                     # Substituted from environment variable PGUSER at load time
+  password: ${PGPASSWORD}             # Substituted from environment variable PGPASSWORD at load time

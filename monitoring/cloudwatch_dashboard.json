@@ -1,0 +1,67 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 24,
+      "height": 3,
+      "properties": {
+        "markdown": "# ShopFlow Pipeline Dashboard\nDaily orchestration, quality checks, and incremental processing at a glance."
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 3,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/States", "ExecutionsStarted", "StateMachineArn", "${STATE_MACHINE_ARN}" ],
+          [ ".", "ExecutionsSucceeded", ".", "." ],
+          [ ".", "ExecutionsFailed", ".", "." ]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "${AWS_REGION}",
+        "title": "Step Functions: Starts / Success / Failures",
+        "yAxis": {
+          "left": { "label": "count" }
+        },
+        "setPeriodToTimeRange": true
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 3,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/States", "ExecutionThrottled", "StateMachineArn", "${STATE_MACHINE_ARN}" ],
+          [ ".", "ExecutionTimedOut", ".", "." ],
+          [ ".", "ExecutionAborted", ".", "." ]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "${AWS_REGION}",
+        "title": "Step Functions: Throttles / Timeouts / Aborts",
+        "setPeriodToTimeRange": true
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 9,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/states/${STATE_MACHINE_NAME}' | fields @timestamp, @message | sort @timestamp desc | limit 50",
+        "region": "${AWS_REGION}",
+        "title": "Recent State Machine Logs"
+      }
+    }
+  ]
+}

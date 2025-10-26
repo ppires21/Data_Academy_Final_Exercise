@@ -1,0 +1,120 @@
+# =========================================
+# File: workflows/state_machine.yaml
+# Purpose: Step Functions state machine (YAML) to orchestrate daily batch
+#          - Runs ETL
+#          - Runs Data Quality checks
+#          - Supports backfill (Map over dates)
+#          - Retries + failure notifications via SNS
+# Notes:
+#   - Uses service integrations for Lambda invocations.
+#   - Lambda ARNs are passed as input or replaced at deploy time by CI/CD.
+#   - JSONPath fields ($.foo) refer to the execution input.
+# =========================================
+
+# Top-level Amazon States Language (ASL) version
+Comment: "ShopFlow Daily Batch Orchestration"   # Human-readable description
+StartAt: ChooseMode                             # Entry state: decide normal vs backfill run
+States:                                         # All state definitions begin here
+
+  ChooseMode:                                   # State to choose between normal daily run or backfill
+    Type: Choice                                # Choice evaluates conditions on the input
+    Choices:                                    # Ordered conditions
+      - Variable: $.backfillDates               # If a list of dates is provided in input
+        IsPresent: true                         # ...then we treat it as backfill mode
+        Next: BackfillMap                       # Go to Map state to iterate the dates
+    Default: DailyFlow                          # Otherwise run the standard daily flow
+
+  BackfillMap:                                  # Map state to run ETL+DQ for each date provided
+    Type: Map                                   # Map iterates over an array input
+    ItemsPath: $.backfillDates                  # Array of ISO dates to process (["2025-10-01", ...])
+    Parameters:                                  # Build per-item payload for inner flow
+      executionDate.$: $$.Map.Item.Value        # Current date element injected into payload
+      etlFunctionArn.$: $.etlFunctionArn        # Pass through Lambda ARN for ETL from outer input
+      dqFunctionArn.$: $.dqFunctionArn          # Pass through Lambda ARN for DQ from outer input
+      notifyTopicArn.$: $.notifyTopicArn        # Pass through SNS topic ARN
+    Iterator:                                    # The inner workflow run for each date
+      StartAt: RunETL                           # First step: ETL for that date
+      States:
+        RunETL:
+          Type: Task                            # Task == external service call
+          Resource: arn:aws:states:::lambda:invoke  # Lambda integration
+          Parameters:                           # Lambda invocation params
+            FunctionName.$: $.etlFunctionArn    # Lambda ARN to call for ETL
+            Payload:                            # JSON payload to Lambda
+              executionDate.$: $.executionDate  # Date we are backfilling
+          Retry:                                # Retry transient errors automatically
+            - ErrorEquals: ["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"]
+              IntervalSeconds: 5
+              BackoffRate: 2.0
+              MaxAttempts: 3
+          ResultPath: $.etlResult               # Capture Lambda result at $.etlResult
+          Next: RunDQ                           # Proceed to Data Quality
+
+        RunDQ:
+          Type: Task
+          Resource: arn:aws:states:::lambda:invoke
+          Parameters:
+            FunctionName.$: $.dqFunctionArn     # Lambda ARN for data quality checks
+            Payload:
+              executionDate.$: $.executionDate  # Same date for DQ
+          Retry:
+            - ErrorEquals: ["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"]
+              IntervalSeconds: 5
+              BackoffRate: 2.0
+              MaxAttempts: 3
+          ResultPath: $.dqResult
+          End: true                             # Finish one backfill item
+
+    Catch:                                      # If inner flow fails for any item
+      - ErrorEquals: ["States.ALL"]             # Catch any error
+        Next: NotifyFailure                     # Send notification
+    End: true                                   # End Map (backfill mode complete)
+
+  DailyFlow:                                    # Normal single-day run (assumes 'today' inside ETL)
+    Type: Parallel                              # Parallel branch lets you extend later if needed
+    Branches:                                   # Single branch for now — clearer growth path
+      - StartAt: RunETL
+        States:
+          RunETL:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName.$: $.etlFunctionArn  # Lambda ARN for ETL (provided at start)
+              Payload:
+                mode: "daily"                   # Let ETL decide "today" based on config/clock
+            Retry:
+              - ErrorEquals: ["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"]
+                IntervalSeconds: 5
+                BackoffRate: 2.0
+                MaxAttempts: 3
+            ResultPath: $.etlResult
+            Next: RunDQ
+          RunDQ:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName.$: $.dqFunctionArn   # Lambda ARN for DQ
+              Payload:
+                mode: "daily"
+            Retry:
+              - ErrorEquals: ["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"]
+                IntervalSeconds: 5
+                BackoffRate: 2.0
+                MaxAttempts: 3
+            ResultPath: $.dqResult
+            End: true
+    Catch:
+      - ErrorEquals: ["States.ALL"]             # Catch any failure inside the Parallel
+        Next: NotifyFailure                     # Notify via SNS
+    End: true                                   # Done with daily flow
+
+  NotifyFailure:                                # Single failure handler
+    Type: Task
+    Resource: arn:aws:states:::sns:publish      # Native SNS integration for notifications
+    Parameters:
+      TopicArn.$: $.notifyTopicArn              # SNS topic to publish to (from input)
+      Message:                                   # Human-friendly message body
+        StateMachine: "ShopFlow Daily Batch"
+        Error.$: $.Error                        # Inject error info from the catcher
+        Cause.$: $.Cause                        # Inject cause info
+    End: true                                   # After notifying, end execution
