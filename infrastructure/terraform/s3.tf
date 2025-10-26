@@ -1,8 +1,8 @@
 # infrastructure/terraform/s3.tf
 
-provider "aws" {
-  region = var.aws_region # Define region in variables
-}
+#provider "aws" {
+#  region = var.aws_region # Define region in variables
+#}
 
 resource "aws_s3_bucket" "data_bucket" {
   bucket = "ctw04557-ppires-academy-finalexercise-bucket" 
@@ -56,10 +56,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_bucket_lifecycle" {
 }
 
 # Variables
-variable "aws_region" {
-  description = "AWS region for the S3 bucket"
-  default     = "eu-central-1"
-}
+#variable "aws_region" {
+#  description = "AWS region for the S3 bucket"
+#  default     = "eu-central-1"
+#}
 
 variable "environment" {
   description = "Deployment environment (dev, prod)"
