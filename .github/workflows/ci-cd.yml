@@ -1,6 +1,7 @@
 # =========================================
 # File: .github/workflows/ci-cd.yml
-# Purpose: CI/CD pipeline with import fixes for pylint
+# Purpose: CI/CD pipeline with import fixes for pylint and
+#          safe fallback for missing AWS_REGION secret
 # =========================================
 
 name: ci-cd
@@ -47,7 +48,6 @@ jobs:
 
       - name: Static analysis (pylint)
         env:
-          # ✅ Add both repo root and src folder to Python path
           PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
         run: |
           pylint --errors-only src || (echo "Fix pylint errors" && exit 1)
@@ -59,7 +59,7 @@ jobs:
       - name: Run tests (pytest)
         env:
           ENV: dev
-          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"  # ✅ same fix for tests
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
         run: |
           pytest -q
 
@@ -78,12 +78,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ------------------------------------------------------
+      # Configure AWS credentials
+      # The AWS_REGION secret is optional now — we fall back
+      # to eu-west-1 if not provided, avoiding Action failure.
+      # ------------------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          # ✅ Use provided secret if it exists, otherwise default to eu-west-1
+          aws-region: ${{ secrets.AWS_REGION || 'eu-west-1' }}
 
+      # Terraform deployment
       - name: Terraform init/plan/apply
         working-directory: ${{ env.TERRAFORM_DIR }}
         run: |
@@ -91,16 +98,19 @@ jobs:
           terraform plan -out=tfplan
           terraform apply -auto-approve tfplan
 
+      # Install yq to process YAML
       - name: Install yq
         run: |
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
+      # Convert AWS Step Function definition from YAML to JSON
       - name: Convert ASL YAML → JSON
         run: |
           yq -o=json '.' "${{ env.STATE_MACHINE_DEF }}" > /tmp/state_machine.json
           echo "Converted YAML to JSON at /tmp/state_machine.json"
 
+      # Create or update the Step Function state machine
       - name: Create/Update Step Function
         env:
           STATE_MACHINE_ARN: ${{ secrets.STATE_MACHINE_ARN }}
@@ -118,6 +128,7 @@ jobs:
               --role-arn "$STATE_MACHINE_ROLE_ARN"
           fi
 
+      # Tag release for traceability
       - name: Tag release
         if: github.ref == 'refs/heads/main'
         run: |
