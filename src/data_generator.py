@@ -6,6 +6,7 @@ import sys
 
 # === Funções auxiliares ===
 
+
 def save_csv(filename, data, headers):
     """Guarda uma lista de dicionários num ficheiro CSV com tratamento de erros."""
     try:
@@ -22,48 +23,105 @@ def save_csv(filename, data, headers):
         print(f"[ERRO] Falha ao guardar {filename}: {e}")
         sys.exit(1)
 
+
 def generate_data():
     """Gera os ficheiros de clientes, produtos e transações com dados portugueses."""
     try:
         # --- Listas de apoio ---
         first_names = [
-            "Ana", "Bruno", "Carla", "Diogo", "Eduardo", "Filipa",
-            "Gonçalo", "Helena", "Inês", "João", "Luís", "Marta",
-            "Nuno", "Patrícia", "Rui", "Sara", "Tiago", "Vera", "Pedro"
+            "Ana",
+            "Bruno",
+            "Carla",
+            "Diogo",
+            "Eduardo",
+            "Filipa",
+            "Gonçalo",
+            "Helena",
+            "Inês",
+            "João",
+            "Luís",
+            "Marta",
+            "Nuno",
+            "Patrícia",
+            "Rui",
+            "Sara",
+            "Tiago",
+            "Vera",
+            "Pedro",
         ]
         last_names = [
-            "Silva", "Santos", "Ferreira", "Pereira", "Oliveira",
-            "Costa", "Rodrigues", "Martins", "Jesus", "Sousa",
-            "Fernandes", "Gonçalves", "Almeida", "Ribeiro", "Pires"
+            "Silva",
+            "Santos",
+            "Ferreira",
+            "Pereira",
+            "Oliveira",
+            "Costa",
+            "Rodrigues",
+            "Martins",
+            "Jesus",
+            "Sousa",
+            "Fernandes",
+            "Gonçalves",
+            "Almeida",
+            "Ribeiro",
+            "Pires",
         ]
         countries = ["Portugal"]
         districts = [
-            "Lisboa", "Porto", "Braga", "Coimbra", "Faro",
-            "Setúbal", "Aveiro", "Leiria", "Viseu", "Évora"
+            "Lisboa",
+            "Porto",
+            "Braga",
+            "Coimbra",
+            "Faro",
+            "Setúbal",
+            "Aveiro",
+            "Leiria",
+            "Viseu",
+            "Évora",
         ]
         categories = [
-            "Eletrónica", "Livros", "Vestuário", "Casa", "Brinquedos", "Mercearia", "Desporto"
+            "Eletrónica",
+            "Livros",
+            "Vestuário",
+            "Casa",
+            "Brinquedos",
+            "Mercearia",
+            "Desporto",
         ]
         suppliers = [
-            "Sonae Distribuição", "Jerónimo Martins", "FNAC Portugal",
-            "Worten", "Continente", "Pingo Doce", "Leroy Merlin"
+            "Sonae Distribuição",
+            "Jerónimo Martins",
+            "FNAC Portugal",
+            "Worten",
+            "Continente",
+            "Pingo Doce",
+            "Leroy Merlin",
         ]
-        payment_methods = ["Cartão de Crédito", "MB Way", "Transferência Bancária", "PayPal"]
+        payment_methods = [
+            "Cartão de Crédito",
+            "MB Way",
+            "Transferência Bancária",
+            "PayPal",
+        ]
 
         # --- Gerar clientes ---
         customers = []
         for i in range(1, 1001):
             name = f"{random.choice(first_names)} {random.choice(last_names)}"
             email = name.lower().replace(" ", ".") + "@exemplo.pt"
-            registration_date = (datetime.now() - timedelta(days=random.randint(0, 1000))).strftime("%Y-%m-%d")
+            registration_date = (
+                datetime.now() - timedelta(days=random.randint(0, 1000))
+            ).strftime("%Y-%m-%d")
             district = random.choice(districts)
-            customers.append({
-                "id": i,
-                "nome": name,
-                "email": email,
-                "data_registo": registration_date,
-                "distrito": district
-            })
+            customers.append(
+                {
+                    "id": i,
+                    "nome": name,
+                    "email": email,
+                    "data_registo": registration_date,
+                    "distrito": district,
+                }
+            )
 
         # --- Gerar produtos ---
         products = []
@@ -72,13 +130,15 @@ def generate_data():
             name = f"{category} {i}"
             price = round(random.uniform(5, 500), 2)
             supplier = random.choice(suppliers)
-            products.append({
-                "id": i,
-                "nome": name,
-                "categoria": category,
-                "preco": price,
-                "fornecedor": supplier
-            })
+            products.append(
+                {
+                    "id": i,
+                    "nome": name,
+                    "categoria": category,
+                    "preco": price,
+                    "fornecedor": supplier,
+                }
+            )
 
         # --- Gerar transações ---
         transactions = []
@@ -88,29 +148,37 @@ def generate_data():
             customer_id = random.randint(1, 1000)
             product_id = random.randint(1, 500)
             quantity = random.randint(1, 5)
-            timestamp = (datetime.now() - timedelta(days=random.randint(0, 365))).strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = (
+                datetime.now() - timedelta(days=random.randint(0, 365))
+            ).strftime("%Y-%m-%d %H:%M:%S")
             payment_method = random.choice(payment_methods)
 
             # find product price
-            product_price = next((p["preco"] for p in products if p["id"] == product_id), 0)
+            product_price = next(
+                (p["preco"] for p in products if p["id"] == product_id), 0
+            )
 
-            transactions.append({
-                "id": i,
-                "id_cliente": customer_id,
-                "id_produto": product_id,
-                "quantidade": quantity,
-                "data_hora": timestamp,
-                "metodo_pagamento": payment_method
-            })
+            transactions.append(
+                {
+                    "id": i,
+                    "id_cliente": customer_id,
+                    "id_produto": product_id,
+                    "quantidade": quantity,
+                    "data_hora": timestamp,
+                    "metodo_pagamento": payment_method,
+                }
+            )
 
             # 🔹 create normalized transaction item
-            transaction_items.append({
-                "id": i,  # same ID for simplicity (1-to-1 in this generator)
-                "id_transacao": i,
-                "id_produto": product_id,
-                "quantidade": quantity,
-                "preco_unitario": product_price
-            })
+            transaction_items.append(
+                {
+                    "id": i,  # same ID for simplicity (1-to-1 in this generator)
+                    "id_transacao": i,
+                    "id_produto": product_id,
+                    "quantidade": quantity,
+                    "preco_unitario": product_price,
+                }
+            )
 
         # --- Guardar ficheiros ---
         save_csv("data/raw/clientes.csv", customers, customers[0].keys())
@@ -118,7 +186,11 @@ def generate_data():
         save_csv("data/raw/transacoes.csv", transactions, transactions[0].keys())
 
         # 🔹 NEW: save normalized transaction items
-        save_csv("data/raw/transacao_itens.csv", transaction_items, transaction_items[0].keys())
+        save_csv(
+            "data/raw/transacao_itens.csv",
+            transaction_items,
+            transaction_items[0].keys(),
+        )
 
         print("✅ Dados portugueses gerados com sucesso!")
 

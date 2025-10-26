@@ -12,8 +12,17 @@ import argparse
 from contextlib import contextmanager
 
 from sqlalchemy import (
-    create_engine, text, Integer, String, Date, DateTime, Numeric, ForeignKey,
-    Column, UniqueConstraint, Index
+    create_engine,
+    text,
+    Integer,
+    String,
+    Date,
+    DateTime,
+    Numeric,
+    ForeignKey,
+    Column,
+    UniqueConstraint,
+    Index,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -32,8 +41,8 @@ cfg = get_config()
 
 # 2️⃣ Setup logging based on config values
 logging.basicConfig(
-    level=cfg["log_level"],               # Uses "DEBUG" or "INFO" from YAML
-    format="%(asctime)s [%(levelname)s] %(message)s"
+    level=cfg["log_level"],  # Uses "DEBUG" or "INFO" from YAML
+    format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger(__name__)
 
@@ -48,12 +57,14 @@ Base = declarative_base()
 # ORM Models (Portuguese)
 # -----------------------
 
+
 class Cliente(Base):
     """Table for customers"""
+
     __tablename__ = "clientes"
     __table_args__ = (
         UniqueConstraint("email", name="uq_clientes_email"),  # Ensure unique emails
-        {"schema": SCHEMA},                                   # Use schema from YAML (e.g., "public" or "shopflow")
+        {"schema": SCHEMA},  # Use schema from YAML (e.g., "public" or "shopflow")
     )
 
     id = Column(Integer, primary_key=True)
@@ -63,11 +74,14 @@ class Cliente(Base):
     distrito = Column(String, nullable=False)
     version_timestamp = Column(DateTime(timezone=True), nullable=False)
 
-    transacoes = relationship("Transacao", back_populates="cliente", cascade="all, delete-orphan")
+    transacoes = relationship(
+        "Transacao", back_populates="cliente", cascade="all, delete-orphan"
+    )
 
 
 class Produto(Base):
     """Table for products"""
+
     __tablename__ = "produtos"
     __table_args__ = ({"schema": SCHEMA},)
 
@@ -78,11 +92,14 @@ class Produto(Base):
     fornecedor = Column(String, nullable=False)
     version_timestamp = Column(DateTime(timezone=True), nullable=False)
 
-    itens_transacao = relationship("TransacaoItem", back_populates="produto", cascade="all, delete-orphan")
+    itens_transacao = relationship(
+        "TransacaoItem", back_populates="produto", cascade="all, delete-orphan"
+    )
 
 
 class Transacao(Base):
     """Table for transactions (main order table)"""
+
     __tablename__ = "transacoes"
     __table_args__ = (
         Index("ix_transacoes_id_cliente", "id_cliente"),
@@ -91,17 +108,22 @@ class Transacao(Base):
     )
 
     id = Column(Integer, primary_key=True)
-    id_cliente = Column(Integer, ForeignKey(f"{SCHEMA}.clientes.id", ondelete="CASCADE"), nullable=False)
+    id_cliente = Column(
+        Integer, ForeignKey(f"{SCHEMA}.clientes.id", ondelete="CASCADE"), nullable=False
+    )
     data_hora = Column(DateTime, nullable=False)
     metodo_pagamento = Column(String, nullable=False)
     version_timestamp = Column(DateTime(timezone=True), nullable=False)
 
     cliente = relationship("Cliente", back_populates="transacoes")
-    itens = relationship("TransacaoItem", back_populates="transacao", cascade="all, delete-orphan")
+    itens = relationship(
+        "TransacaoItem", back_populates="transacao", cascade="all, delete-orphan"
+    )
 
 
 class TransacaoItem(Base):
     """Table for transaction items (each product per transaction)"""
+
     __tablename__ = "transacao_itens"
     __table_args__ = (
         Index("ix_transacao_itens_id_transacao", "id_transacao"),
@@ -110,8 +132,14 @@ class TransacaoItem(Base):
     )
 
     id = Column(Integer, primary_key=True)
-    id_transacao = Column(Integer, ForeignKey(f"{SCHEMA}.transacoes.id", ondelete="CASCADE"), nullable=False)
-    id_produto = Column(Integer, ForeignKey(f"{SCHEMA}.produtos.id", ondelete="CASCADE"), nullable=False)
+    id_transacao = Column(
+        Integer,
+        ForeignKey(f"{SCHEMA}.transacoes.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    id_produto = Column(
+        Integer, ForeignKey(f"{SCHEMA}.produtos.id", ondelete="CASCADE"), nullable=False
+    )
     quantidade = Column(Integer, nullable=False)
     preco_unitario = Column(Numeric(10, 2), nullable=False)
     version_timestamp = Column(DateTime(timezone=True), nullable=False)
@@ -123,6 +151,7 @@ class TransacaoItem(Base):
 # -----------------------
 # Engine / helpers
 # -----------------------
+
 
 def get_engine(echo: bool = False):
     """
@@ -192,7 +221,9 @@ def create_views_from_file(engine, sql_file_path="sql/data_analytics.sql"):
         raw_sql = f.read()
 
     # Remove comments and blank lines
-    clean_sql = [line for line in raw_sql.splitlines() if not line.strip().startswith("--")]
+    clean_sql = [
+        line for line in raw_sql.splitlines() if not line.strip().startswith("--")
+    ]
     sql_content = "\n".join(clean_sql)
 
     # Split into multiple statements by semicolon
@@ -220,10 +251,21 @@ def parse_args():
     --recreate  : drop and recreate all tables
     --sql-file  : specify the analytics SQL file
     """
-    p = argparse.ArgumentParser(description="Shopflow DB setup (multi-item transactions, YAML config enabled)")
+    p = argparse.ArgumentParser(
+        description="Shopflow DB setup (multi-item transactions, YAML config enabled)"
+    )
     p.add_argument("--echo", action="store_true", help="Print SQL statements")
-    p.add_argument("--recreate", action="store_true", help="Drop and recreate all tables before running")
-    p.add_argument("--sql-file", type=str, default="sql/data_analytics.sql", help="Path to analytics SQL file")
+    p.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Drop and recreate all tables before running",
+    )
+    p.add_argument(
+        "--sql-file",
+        type=str,
+        default="sql/data_analytics.sql",
+        help="Path to analytics SQL file",
+    )
     return p.parse_args()
 
 

@@ -27,7 +27,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 # -----------------------
 # Configuration
 # -----------------------
-S3_BUCKET = "ctw04557-ppires-academy-finalexercise-bucket" 
+S3_BUCKET = "ctw04557-ppires-academy-finalexercise-bucket"
 
 # -----------------------
 # Logging

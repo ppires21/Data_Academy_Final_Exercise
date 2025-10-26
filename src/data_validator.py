@@ -13,10 +13,12 @@ os.makedirs(log_dir, exist_ok=True)
 
 # --- Helper functions for validation ---
 
+
 def is_valid_email(email):
     """Check if an email address has a basic valid format."""
     pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
     return re.match(pattern, email) is not None
+
 
 def is_valid_date(date_str):
     """Try to parse a date to see if it's in a valid format."""
@@ -28,10 +30,12 @@ def is_valid_date(date_str):
             continue
     return False
 
+
 def log(message):
     """Append a message to the log file."""
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(message + "\n")
+
 
 # --- Main validation function ---
 def validate_csv(filename):
@@ -53,9 +57,13 @@ def validate_csv(filename):
             # Specific file checks (Portuguese field names)
             if filename == "clientes.csv":
                 if not is_valid_email(row.get("email", "")):
-                    log(f"[{filename}] Row {row_num}: Invalid email '{row.get('email')}'")
+                    log(
+                        f"[{filename}] Row {row_num}: Invalid email '{row.get('email')}'"
+                    )
                 if not is_valid_date(row.get("data_registo", "")):
-                    log(f"[{filename}] Row {row_num}: Invalid date '{row.get('data_registo')}'")
+                    log(
+                        f"[{filename}] Row {row_num}: Invalid date '{row.get('data_registo')}'"
+                    )
 
             elif filename == "produtos.csv":
                 try:
@@ -63,11 +71,15 @@ def validate_csv(filename):
                     if price <= 0:
                         log(f"[{filename}] Row {row_num}: Non-positive price '{price}'")
                 except ValueError:
-                    log(f"[{filename}] Row {row_num}: Invalid price '{row.get('preco')}'")
+                    log(
+                        f"[{filename}] Row {row_num}: Invalid price '{row.get('preco')}'"
+                    )
 
             elif filename == "transacoes.csv":
                 if not is_valid_date(row.get("data_hora", "")):
-                    log(f"[{filename}] Row {row_num}: Invalid timestamp '{row.get('data_hora')}'")
+                    log(
+                        f"[{filename}] Row {row_num}: Invalid timestamp '{row.get('data_hora')}'"
+                    )
 
             elif filename == "transacao_itens.csv":
                 # quantidade
@@ -76,28 +88,41 @@ def validate_csv(filename):
                     if q <= 0:
                         log(f"[{filename}] Row {row_num}: Non-positive quantity '{q}'")
                 except ValueError:
-                    log(f"[{filename}] Row {row_num}: Invalid quantity '{row.get('quantidade')}'")
+                    log(
+                        f"[{filename}] Row {row_num}: Invalid quantity '{row.get('quantidade')}'"
+                    )
                 # preco_unitario
                 try:
                     pu = float(row.get("preco_unitario", "nan"))
                     if pu <= 0:
-                        log(f"[{filename}] Row {row_num}: Non-positive unit price '{pu}'")
+                        log(
+                            f"[{filename}] Row {row_num}: Non-positive unit price '{pu}'"
+                        )
                 except ValueError:
-                    log(f"[{filename}] Row {row_num}: Invalid unit price '{row.get('preco_unitario')}'")
+                    log(
+                        f"[{filename}] Row {row_num}: Invalid unit price '{row.get('preco_unitario')}'"
+                    )
 
             row_num += 1
 
     log(f"[OK] Finished validating {filename}")
+
 
 # --- Run all validations ---
 def main():
     open(log_file, "w").close()  # Clear previous log
     log("Starting data validation...\n")
 
-    for filename in ["clientes.csv", "produtos.csv", "transacoes.csv", "transacao_itens.csv"]:
+    for filename in [
+        "clientes.csv",
+        "produtos.csv",
+        "transacoes.csv",
+        "transacao_itens.csv",
+    ]:
         validate_csv(filename)
 
     log("\nValidation complete.")
+
 
 if __name__ == "__main__":
     main()

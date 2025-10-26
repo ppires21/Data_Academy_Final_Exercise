@@ -6,15 +6,18 @@
 # - Load into a warehouse schema (star/snowflake)
 # =========================================
 
-import os                                           # Used for path handling and environment access
-import io                                           # Used to read S3 object byte streams into pandas
-import time                                         # Used to measure processing time for performance metrics
-import logging                                      # Used for structured logging of pipeline stages
-from datetime import datetime                       # Used for timestamps (e.g., SCD Type 2 validity)
-from typing import Tuple, Dict                      # Type hints for readability
-import pandas as pd                                 # Core data manipulation library
-from sqlalchemy import create_engine, text          # SQLAlchemy for DB connections and SQL execution
-import boto3                                        # AWS SDK to extract CSVs from S3
+import os  # Used for path handling and environment access
+import io  # Used to read S3 object byte streams into pandas
+import time  # Used to measure processing time for performance metrics
+import logging  # Used for structured logging of pipeline stages
+from datetime import datetime  # Used for timestamps (e.g., SCD Type 2 validity)
+from typing import Tuple, Dict  # Type hints for readability
+import pandas as pd  # Core data manipulation library
+from sqlalchemy import (
+    create_engine,
+    text,
+)  # SQLAlchemy for DB connections and SQL execution
+import boto3  # AWS SDK to extract CSVs from S3
 from botocore.exceptions import BotoCoreError, ClientError  # S3 error handling
 import sys
 
@@ -22,32 +25,40 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 
 
 # --- Config loader (from Iteration 2) ---
-from config.config_loader import get_config, build_db_url   # Load YAML config and build DB URL
+from config.config_loader import (
+    get_config,
+    build_db_url,
+)  # Load YAML config and build DB URL
 
 
 # -----------------------
 # Setup
 # -----------------------
 
-cfg = get_config()                                # Load configuration from config/{ENV}.yaml
-logging.basicConfig(                              # Configure logging based on config
-    level=cfg["log_level"],                       # DEBUG in dev, INFO in prod
+cfg = get_config()  # Load configuration from config/{ENV}.yaml
+logging.basicConfig(  # Configure logging based on config
+    level=cfg["log_level"],  # DEBUG in dev, INFO in prod
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
-log = logging.getLogger(__name__)                 # Module-level logger
+log = logging.getLogger(__name__)  # Module-level logger
 
-DB_URL = build_db_url(cfg)                        # Build SQLAlchemy DB URL using config
-ENGINE = create_engine(DB_URL, future=True)       # Create a DB engine (used for DB extract + warehouse load)
-WAREHOUSE_SCHEMA = "warehouse"                    # Name of data-warehouse schema for outputs (star/snowflake)
-RAW_DIR = "data/raw"                              # Local CSV directory for the CSV source
-S3_BUCKET = cfg["s3_bucket"]                      # Bucket name for S3 source
-AWS_REGION = cfg["aws_region"]                    # Region for making the S3 client
-S3 = boto3.client("s3", region_name=AWS_REGION)   # S3 client configured with region
+DB_URL = build_db_url(cfg)  # Build SQLAlchemy DB URL using config
+ENGINE = create_engine(
+    DB_URL, future=True
+)  # Create a DB engine (used for DB extract + warehouse load)
+WAREHOUSE_SCHEMA = (
+    "warehouse"  # Name of data-warehouse schema for outputs (star/snowflake)
+)
+RAW_DIR = "data/raw"  # Local CSV directory for the CSV source
+S3_BUCKET = cfg["s3_bucket"]  # Bucket name for S3 source
+AWS_REGION = cfg["aws_region"]  # Region for making the S3 client
+S3 = boto3.client("s3", region_name=AWS_REGION)  # S3 client configured with region
 
 
 # -----------------------
 # Extract
 # -----------------------
+
 
 def extract_from_csv() -> Dict[str, pd.DataFrame]:
     """
@@ -55,26 +66,30 @@ def extract_from_csv() -> Dict[str, pd.DataFrame]:
     Expects files in data/raw: clientes.csv, produtos.csv, transacoes.csv, transacao_itens.csv
     Returns a dict of DataFrames keyed by logical table name.
     """
-    log.info("Extracting from CSV (local files)…")                         # Log extraction start
+    log.info("Extracting from CSV (local files)…")  # Log extraction start
 
     # Build file paths for each expected CSV
-    clientes_path = os.path.join(RAW_DIR, "clientes.csv")                  # Path to customers CSV
-    produtos_path = os.path.join(RAW_DIR, "produtos.csv")                  # Path to products CSV
-    transacoes_path = os.path.join(RAW_DIR, "transacoes.csv")              # Path to transactions CSV
-    itens_path = os.path.join(RAW_DIR, "transacao_itens.csv")              # Path to transaction items CSV
+    clientes_path = os.path.join(RAW_DIR, "clientes.csv")  # Path to customers CSV
+    produtos_path = os.path.join(RAW_DIR, "produtos.csv")  # Path to products CSV
+    transacoes_path = os.path.join(
+        RAW_DIR, "transacoes.csv"
+    )  # Path to transactions CSV
+    itens_path = os.path.join(
+        RAW_DIR, "transacao_itens.csv"
+    )  # Path to transaction items CSV
 
     # Read CSVs into DataFrames
-    clientes = pd.read_csv(clientes_path)                                  # Load customers CSV
-    produtos = pd.read_csv(produtos_path)                                  # Load products CSV
-    transacoes = pd.read_csv(transacoes_path)                              # Load transactions CSV
-    itens = pd.read_csv(itens_path)                                        # Load transaction items CSV
+    clientes = pd.read_csv(clientes_path)  # Load customers CSV
+    produtos = pd.read_csv(produtos_path)  # Load products CSV
+    transacoes = pd.read_csv(transacoes_path)  # Load transactions CSV
+    itens = pd.read_csv(itens_path)  # Load transaction items CSV
 
     # Return dictionary keyed by entity
     return {
-        "clientes": clientes,                                              # Customers DF
-        "produtos": produtos,                                              # Products DF
-        "transacoes": transacoes,                                          # Transactions DF
-        "transacao_itens": itens,                                          # Transaction items DF
+        "clientes": clientes,  # Customers DF
+        "produtos": produtos,  # Products DF
+        "transacoes": transacoes,  # Transactions DF
+        "transacao_itens": itens,  # Transaction items DF
     }
 
 
@@ -83,27 +98,27 @@ def extract_from_db(engine) -> Dict[str, pd.DataFrame]:
     Extract cleaned/structured data from PostgreSQL RDS (Iteration 3 requires DB source).
     Reads the same four entities created in Iteration 2.
     """
-    log.info("Extracting from Database (RDS)…")                             # Log extraction start
+    log.info("Extracting from Database (RDS)…")  # Log extraction start
 
     # Define simple SELECTs for each table in the normalized schema (using cfg["db_schema"])
-    schema = cfg["db_schema"]                                               # Source normalized schema
-    q_clientes = f"SELECT * FROM {schema}.clientes"                         # Query customers
-    q_produtos = f"SELECT * FROM {schema}.produtos"                         # Query products
-    q_transacoes = f"SELECT * FROM {schema}.transacoes"                     # Query transactions
-    q_itens = f"SELECT * FROM {schema}.transacao_itens"                     # Query transaction items
+    schema = cfg["db_schema"]  # Source normalized schema
+    q_clientes = f"SELECT * FROM {schema}.clientes"  # Query customers
+    q_produtos = f"SELECT * FROM {schema}.produtos"  # Query products
+    q_transacoes = f"SELECT * FROM {schema}.transacoes"  # Query transactions
+    q_itens = f"SELECT * FROM {schema}.transacao_itens"  # Query transaction items
 
     # Read each query into a DataFrame
-    clientes = pd.read_sql(q_clientes, engine)                              # Load customers DF
-    produtos = pd.read_sql(q_produtos, engine)                              # Load products DF
-    transacoes = pd.read_sql(q_transacoes, engine)                          # Load transactions DF
-    itens = pd.read_sql(q_itens, engine)                                    # Load transaction items DF
+    clientes = pd.read_sql(q_clientes, engine)  # Load customers DF
+    produtos = pd.read_sql(q_produtos, engine)  # Load products DF
+    transacoes = pd.read_sql(q_transacoes, engine)  # Load transactions DF
+    itens = pd.read_sql(q_itens, engine)  # Load transaction items DF
 
     # Return dictionary keyed by entity
     return {
-        "clientes": clientes,                                               # Customers DF
-        "produtos": produtos,                                               # Products DF
-        "transacoes": transacoes,                                           # Transactions DF
-        "transacao_itens": itens,                                           # Transaction items DF
+        "clientes": clientes,  # Customers DF
+        "produtos": produtos,  # Products DF
+        "transacoes": transacoes,  # Transactions DF
+        "transacao_itens": itens,  # Transaction items DF
     }
 
 
@@ -112,9 +127,9 @@ def _read_s3_csv(key: str) -> pd.DataFrame:
     Helper to read a CSV object from S3 into a pandas DataFrame.
     The 'key' must point to an object in the configured bucket.
     """
-    obj = S3.get_object(Bucket=S3_BUCKET, Key=key)                          # Fetch object from S3
-    body = obj["Body"].read()                                               # Read bytes from streaming body
-    return pd.read_csv(io.BytesIO(body))                                    # Parse CSV bytes into DataFrame
+    obj = S3.get_object(Bucket=S3_BUCKET, Key=key)  # Fetch object from S3
+    body = obj["Body"].read()  # Read bytes from streaming body
+    return pd.read_csv(io.BytesIO(body))  # Parse CSV bytes into DataFrame
 
 
 def extract_from_s3(partition_prefix: str) -> Dict[str, pd.DataFrame]:
@@ -123,38 +138,42 @@ def extract_from_s3(partition_prefix: str) -> Dict[str, pd.DataFrame]:
       raw/year=YYYY/month=MM/day=DD/{customers|products|transactions}/<file>.csv
     The caller provides the partition (e.g., 'raw/year=2025/month=10/day=26').
     """
-    log.info(f"Extracting from S3 at prefix: s3://{S3_BUCKET}/{partition_prefix}")  # Log which prefix we use
+    log.info(
+        f"Extracting from S3 at prefix: s3://{S3_BUCKET}/{partition_prefix}"
+    )  # Log which prefix we use
 
     # Construct typical object keys for each entity folder (one recent file assumed per folder)
     # In a real system you'd list_objects_v2, sort by LastModified, and pick the newest.
-    customers_key = f"{partition_prefix}/customers/"                          # Folder for customers
-    products_key = f"{partition_prefix}/products/"                            # Folder for products
-    transactions_key = f"{partition_prefix}/transactions/"                    # Folder for transactions
+    customers_key = f"{partition_prefix}/customers/"  # Folder for customers
+    products_key = f"{partition_prefix}/products/"  # Folder for products
+    transactions_key = f"{partition_prefix}/transactions/"  # Folder for transactions
 
     # List and pick one object per folder (minimal requirement: extract exists)
     def _pick_first_key(prefix: str) -> str:
-        resp = S3.list_objects_v2(Bucket=S3_BUCKET, Prefix=prefix)            # List objects under prefix
-        contents = resp.get("Contents", [])                                   # Get list of objects
-        if not contents:                                                      # If empty, error (fulfills extract requirement)
+        resp = S3.list_objects_v2(
+            Bucket=S3_BUCKET, Prefix=prefix
+        )  # List objects under prefix
+        contents = resp.get("Contents", [])  # Get list of objects
+        if not contents:  # If empty, error (fulfills extract requirement)
             raise FileNotFoundError(f"No objects under s3://{S3_BUCKET}/{prefix}")
-        return contents[0]["Key"]                                             # Return the first object's key
+        return contents[0]["Key"]  # Return the first object's key
 
     # Resolve specific object keys
-    cust_obj_key = _pick_first_key(customers_key)                             # Pick a customers CSV key
-    prod_obj_key = _pick_first_key(products_key)                              # Pick a products CSV key
-    trans_obj_key = _pick_first_key(transactions_key)                         # Pick a transactions CSV key
+    cust_obj_key = _pick_first_key(customers_key)  # Pick a customers CSV key
+    prod_obj_key = _pick_first_key(products_key)  # Pick a products CSV key
+    trans_obj_key = _pick_first_key(transactions_key)  # Pick a transactions CSV key
 
     # Read DataFrames
-    clientes = _read_s3_csv(cust_obj_key)                                     # Load customers DF from S3
-    produtos = _read_s3_csv(prod_obj_key)                                     # Load products DF from S3
-    transacoes = _read_s3_csv(trans_obj_key)                                  # Load transactions DF from S3
+    clientes = _read_s3_csv(cust_obj_key)  # Load customers DF from S3
+    produtos = _read_s3_csv(prod_obj_key)  # Load products DF from S3
+    transacoes = _read_s3_csv(trans_obj_key)  # Load transactions DF from S3
 
     # There may not be items on S3 in the exercise text—keep minimal to spec (3 folders).
     # Return dictionary of what we extracted from S3
     return {
-        "clientes": clientes,                                                 # Customers DF from S3
-        "produtos": produtos,                                                 # Products DF from S3
-        "transacoes": transacoes,                                             # Transactions DF from S3
+        "clientes": clientes,  # Customers DF from S3
+        "produtos": produtos,  # Products DF from S3
+        "transacoes": transacoes,  # Transactions DF from S3
     }
 
 
@@ -162,38 +181,67 @@ def extract_from_s3(partition_prefix: str) -> Dict[str, pd.DataFrame]:
 # Transform
 # -----------------------
 
-def _prepare_transaction_fact(transacoes: pd.DataFrame, itens: pd.DataFrame, produtos: pd.DataFrame) -> pd.DataFrame:
+
+def _prepare_transaction_fact(
+    transacoes: pd.DataFrame, itens: pd.DataFrame, produtos: pd.DataFrame
+) -> pd.DataFrame:
     """
     Create a transaction fact table with total line amounts by joining items + products (price) + transaction time.
     """
-    t = transacoes.copy()                                                     # Copy to avoid mutating input
-    i = itens.copy()                                                          # Copy items
-    p = produtos.copy()                                                       # Copy products
+    t = transacoes.copy()  # Copy to avoid mutating input
+    i = itens.copy()  # Copy items
+    p = produtos.copy()  # Copy products
 
-    t["data_hora"] = pd.to_datetime(t["data_hora"], errors="coerce")          # Parse transaction timestamp
-    i = i.merge(p[["id", "preco"]], left_on="id_produto", right_on="id", how="left")  # Bring in product price
-    i["total_linha"] = i["quantidade"] * i["preco"]                           # Compute line total
+    t["data_hora"] = pd.to_datetime(
+        t["data_hora"], errors="coerce"
+    )  # Parse transaction timestamp
+    i = i.merge(
+        p[["id", "preco"]], left_on="id_produto", right_on="id", how="left"
+    )  # Bring in product price
+    i["total_linha"] = i["quantidade"] * i["preco"]  # Compute line total
 
-    fact = i.merge(t[["id", "id_cliente", "data_hora"]],                      # Join items to transactions
-                   left_on="id_transacao", right_on="id", how="left",
-                   suffixes=("_item", "_trans"))
-    fact.rename(columns={"id_cliente": "customer_id",
-                         "id_produto": "product_id",
-                         "id_transacao": "transaction_id"}, inplace=True)     # Rename columns to DW-friendly names
+    fact = i.merge(
+        t[["id", "id_cliente", "data_hora"]],  # Join items to transactions
+        left_on="id_transacao",
+        right_on="id",
+        how="left",
+        suffixes=("_item", "_trans"),
+    )
+    fact.rename(
+        columns={
+            "id_cliente": "customer_id",
+            "id_produto": "product_id",
+            "id_transacao": "transaction_id",
+        },
+        inplace=True,
+    )  # Rename columns to DW-friendly names
 
-    fact["date"] = fact["data_hora"].dt.date                                  # Extract date for aggregations
-    return fact[["transaction_id", "customer_id", "product_id", "quantidade", "preco", "total_linha", "data_hora", "date"]]
-                                                                               # Return a clean fact-like frame
+    fact["date"] = fact["data_hora"].dt.date  # Extract date for aggregations
+    return fact[
+        [
+            "transaction_id",
+            "customer_id",
+            "product_id",
+            "quantidade",
+            "preco",
+            "total_linha",
+            "data_hora",
+            "date",
+        ]
+    ]
+    # Return a clean fact-like frame
 
 
 def transform_clv(fact: pd.DataFrame) -> pd.DataFrame:
     """
     Calculate Customer Lifetime Value (CLV) as total spending per customer.
     """
-    clv = (fact.groupby("customer_id")["total_linha"]                          # Group by customer_id
-           .sum()                                                              # Sum all line totals
-           .reset_index(name="customer_lifetime_value"))                       # Output column is CLV
-    return clv                                                                 # Return CLV dimension
+    clv = (
+        fact.groupby("customer_id")["total_linha"]  # Group by customer_id
+        .sum()  # Sum all line totals
+        .reset_index(name="customer_lifetime_value")
+    )  # Output column is CLV
+    return clv  # Return CLV dimension
 
 
 def transform_recommendations(fact: pd.DataFrame) -> pd.DataFrame:
@@ -201,36 +249,48 @@ def transform_recommendations(fact: pd.DataFrame) -> pd.DataFrame:
     Create simple product co-occurrence pairs for "customers who bought X also bought Y".
     """
     # Build item pairs by joining fact to itself on transaction_id
-    pairs = fact.merge(fact, on="transaction_id", suffixes=("_x", "_y"))       # Self-join on transaction
-    pairs = pairs[pairs["product_id_x"] != pairs["product_id_y"]]               # Exclude self-pairs
-    rec = (pairs.groupby(["product_id_x", "product_id_y"])                      # Count co-purchases
-                 .size()
-                 .reset_index(name="co_purchase_count"))
-    return rec                                                                  # Return recommendation pairs
+    pairs = fact.merge(
+        fact, on="transaction_id", suffixes=("_x", "_y")
+    )  # Self-join on transaction
+    pairs = pairs[pairs["product_id_x"] != pairs["product_id_y"]]  # Exclude self-pairs
+    rec = (
+        pairs.groupby(["product_id_x", "product_id_y"])  # Count co-purchases
+        .size()
+        .reset_index(name="co_purchase_count")
+    )
+    return rec  # Return recommendation pairs
 
 
-def transform_time_aggregations(fact: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def transform_time_aggregations(
+    fact: pd.DataFrame,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Aggregate daily, weekly, and monthly revenue metrics.
     """
-    f = fact.copy()                                                             # Copy to avoid side-effects
-    f["date"] = pd.to_datetime(f["date"])                                       # Ensure date type
-    f["week"] = f["date"].dt.isocalendar().week                                 # Compute ISO week number
-    f["month"] = f["date"].dt.to_period("M").astype(str)                        # Compute YYYY-MM month label
+    f = fact.copy()  # Copy to avoid side-effects
+    f["date"] = pd.to_datetime(f["date"])  # Ensure date type
+    f["week"] = f["date"].dt.isocalendar().week  # Compute ISO week number
+    f["month"] = f["date"].dt.to_period("M").astype(str)  # Compute YYYY-MM month label
 
-    daily = (f.groupby("date")["total_linha"]                                   # Sum revenue by date
-               .sum()
-               .reset_index(name="daily_revenue"))
+    daily = (
+        f.groupby("date")["total_linha"]  # Sum revenue by date
+        .sum()
+        .reset_index(name="daily_revenue")
+    )
 
-    weekly = (f.groupby("week")["total_linha"]                                  # Sum revenue by ISO week
-                .sum()
-                .reset_index(name="weekly_revenue"))
+    weekly = (
+        f.groupby("week")["total_linha"]  # Sum revenue by ISO week
+        .sum()
+        .reset_index(name="weekly_revenue")
+    )
 
-    monthly = (f.groupby("month")["total_linha"]                                 # Sum revenue by month
-                 .sum()
-                 .reset_index(name="monthly_revenue"))
+    monthly = (
+        f.groupby("month")["total_linha"]  # Sum revenue by month
+        .sum()
+        .reset_index(name="monthly_revenue")
+    )
 
-    return daily, weekly, monthly                                               # Return three aggregation tables
+    return daily, weekly, monthly  # Return three aggregation tables
 
 
 def scd2_upsert_dim_products(engine, source_products: pd.DataFrame):
@@ -241,10 +301,14 @@ def scd2_upsert_dim_products(engine, source_products: pd.DataFrame):
       - start_date, end_date, is_current
     """
     # Ensure warehouse schema exists (idempotent)
-    with engine.begin() as conn:                                                # Begin DB transaction
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {WAREHOUSE_SCHEMA}"))   # Create warehouse schema if needed
+    with engine.begin() as conn:  # Begin DB transaction
+        conn.execute(
+            text(f"CREATE SCHEMA IF NOT EXISTS {WAREHOUSE_SCHEMA}")
+        )  # Create warehouse schema if needed
         # Create dimension table if not exists
-        conn.execute(text(f"""
+        conn.execute(
+            text(
+                f"""
             CREATE TABLE IF NOT EXISTS {WAREHOUSE_SCHEMA}.dim_products (
                 id              INT         NOT NULL,
                 nome            TEXT        NOT NULL,
@@ -256,126 +320,228 @@ def scd2_upsert_dim_products(engine, source_products: pd.DataFrame):
                 is_current      BOOLEAN     NOT NULL,
                 PRIMARY KEY (id, start_date)
             )
-        """))                                                                    # Define SCD2 structure with composite PK
+        """
+            )
+        )  # Define SCD2 structure with composite PK
 
     # Read current dimension snapshot
-    current_dim = pd.read_sql(f"SELECT * FROM {WAREHOUSE_SCHEMA}.dim_products", engine)  # Load existing dim
-    now = datetime.utcnow()                                                      # Use UTC timestamp for validity windows
+    current_dim = pd.read_sql(
+        f"SELECT * FROM {WAREHOUSE_SCHEMA}.dim_products", engine
+    )  # Load existing dim
+    now = datetime.utcnow()  # Use UTC timestamp for validity windows
 
     # If dimension empty, insert all as current versions
-    if current_dim.empty:                                                        # First load case
-        init = source_products.copy()                                            # Copy source
-        init["start_date"] = now                                                 # All rows start now
-        init["end_date"] = pd.NaT                                                # No end date yet
-        init["is_current"] = True                                                # Mark as current
-        init.to_sql("dim_products", engine, schema=WAREHOUSE_SCHEMA, if_exists="append", index=False)  # Insert all
-        log.info("Initialized dim_products (SCD2) with current snapshot.")       # Log init
-        return                                                                   # Done for initial load
+    if current_dim.empty:  # First load case
+        init = source_products.copy()  # Copy source
+        init["start_date"] = now  # All rows start now
+        init["end_date"] = pd.NaT  # No end date yet
+        init["is_current"] = True  # Mark as current
+        init.to_sql(
+            "dim_products",
+            engine,
+            schema=WAREHOUSE_SCHEMA,
+            if_exists="append",
+            index=False,
+        )  # Insert all
+        log.info("Initialized dim_products (SCD2) with current snapshot.")  # Log init
+        return  # Done for initial load
 
     # Join source to current to detect changes in preco (price)
-    merged = source_products.merge(                                              # Align source with current rows
-        current_dim[current_dim["is_current"] == True],                          # Only current versions
-        on=["id", "nome", "categoria", "fornecedor"],                            # Match on natural keys except preco
+    merged = source_products.merge(  # Align source with current rows
+        current_dim[current_dim["is_current"] == True],  # Only current versions
+        on=[
+            "id",
+            "nome",
+            "categoria",
+            "fornecedor",
+        ],  # Match on natural keys except preco
         how="left",
         suffixes=("_src", "_cur"),
     )
 
     # Identify new price versions (where current exists and price changed) OR brand new products (no current row)
-    changed_price = merged[(~merged["preco_cur"].isna()) & (merged["preco_src"] != merged["preco_cur"])]  # Price changed
-    new_products = merged[merged["preco_cur"].isna()]                                                     # Not in dimension
+    changed_price = merged[
+        (~merged["preco_cur"].isna()) & (merged["preco_src"] != merged["preco_cur"])
+    ]  # Price changed
+    new_products = merged[merged["preco_cur"].isna()]  # Not in dimension
 
     # Close current versions for changed products
-    with engine.begin() as conn:                                                  # Transaction for updates/inserts
-        for pid in changed_price["id"].unique():                                  # For each product whose price changed
-            conn.execute(text(f"""
+    with engine.begin() as conn:  # Transaction for updates/inserts
+        for pid in changed_price["id"].unique():  # For each product whose price changed
+            conn.execute(
+                text(
+                    f"""
                 UPDATE {WAREHOUSE_SCHEMA}.dim_products
                 SET end_date = :now, is_current = FALSE
                 WHERE id = :pid AND is_current = TRUE
-            """), {"now": now, "pid": int(pid)})                                  # Set end_date and flip is_current
+            """
+                ),
+                {"now": now, "pid": int(pid)},
+            )  # Set end_date and flip is_current
 
         # Insert new current versions for changed products
         if not changed_price.empty:
-            new_rows = changed_price[["id", "nome", "categoria", "fornecedor", "preco_src"]].copy()  # Build new current rows
-            new_rows.rename(columns={"preco_src": "preco"}, inplace=True)                            # Rename to target col
-            new_rows["start_date"] = now                                                             # Start now
-            new_rows["end_date"] = pd.NaT                                                            # Open-ended
-            new_rows["is_current"] = True                                                            # Mark as current
-            new_rows.to_sql("dim_products", engine, schema=WAREHOUSE_SCHEMA, if_exists="append", index=False)  # Insert
+            new_rows = changed_price[
+                ["id", "nome", "categoria", "fornecedor", "preco_src"]
+            ].copy()  # Build new current rows
+            new_rows.rename(
+                columns={"preco_src": "preco"}, inplace=True
+            )  # Rename to target col
+            new_rows["start_date"] = now  # Start now
+            new_rows["end_date"] = pd.NaT  # Open-ended
+            new_rows["is_current"] = True  # Mark as current
+            new_rows.to_sql(
+                "dim_products",
+                engine,
+                schema=WAREHOUSE_SCHEMA,
+                if_exists="append",
+                index=False,
+            )  # Insert
 
         # Insert brand new products as current
         if not new_products.empty:
-            ins = new_products[["id", "nome", "categoria", "fornecedor", "preco_src"]].copy()        # Prepare insert
-            ins.rename(columns={"preco_src": "preco"}, inplace=True)                                  # Fix column name
-            ins["start_date"] = now                                                                   # Valid from now
-            ins["end_date"] = pd.NaT                                                                  # No end yet
-            ins["is_current"] = True                                                                  # Current
-            ins.to_sql("dim_products", engine, schema=WAREHOUSE_SCHEMA, if_exists="append", index=False)  # Insert
+            ins = new_products[
+                ["id", "nome", "categoria", "fornecedor", "preco_src"]
+            ].copy()  # Prepare insert
+            ins.rename(columns={"preco_src": "preco"}, inplace=True)  # Fix column name
+            ins["start_date"] = now  # Valid from now
+            ins["end_date"] = pd.NaT  # No end yet
+            ins["is_current"] = True  # Current
+            ins.to_sql(
+                "dim_products",
+                engine,
+                schema=WAREHOUSE_SCHEMA,
+                if_exists="append",
+                index=False,
+            )  # Insert
 
-    log.info("SCD Type 2 upsert completed for dim_products.")                     # Log completion
+    log.info("SCD Type 2 upsert completed for dim_products.")  # Log completion
 
 
 # -----------------------
 # Load (Warehouse)
 # -----------------------
 
+
 def ensure_warehouse(engine):
     """
     Ensure the warehouse schema and core fact/dim tables exist.
     """
-    with engine.begin() as conn:                                                # Begin transaction
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {WAREHOUSE_SCHEMA}"))   # Create schema if missing
+    with engine.begin() as conn:  # Begin transaction
+        conn.execute(
+            text(f"CREATE SCHEMA IF NOT EXISTS {WAREHOUSE_SCHEMA}")
+        )  # Create schema if missing
         # Create basic fact tables (daily/weekly/monthly; minimal star)
-        conn.execute(text(f"""
+        conn.execute(
+            text(
+                f"""
             CREATE TABLE IF NOT EXISTS {WAREHOUSE_SCHEMA}.fact_daily_sales (
                 date            DATE PRIMARY KEY,
                 daily_revenue   NUMERIC(14,2) NOT NULL
             )
-        """))                                                                    # Daily fact
-        conn.execute(text(f"""
+        """
+            )
+        )  # Daily fact
+        conn.execute(
+            text(
+                f"""
             CREATE TABLE IF NOT EXISTS {WAREHOUSE_SCHEMA}.fact_weekly_sales (
                 week            INT PRIMARY KEY,
                 weekly_revenue  NUMERIC(14,2) NOT NULL
             )
-        """))                                                                    # Weekly fact
-        conn.execute(text(f"""
+        """
+            )
+        )  # Weekly fact
+        conn.execute(
+            text(
+                f"""
             CREATE TABLE IF NOT EXISTS {WAREHOUSE_SCHEMA}.fact_monthly_sales (
                 month           TEXT PRIMARY KEY,
                 monthly_revenue NUMERIC(14,2) NOT NULL
             )
-        """))                                                                    # Monthly fact
-        conn.execute(text(f"""
+        """
+            )
+        )  # Monthly fact
+        conn.execute(
+            text(
+                f"""
             CREATE TABLE IF NOT EXISTS {WAREHOUSE_SCHEMA}.dim_customer_value (
                 customer_id                 INT PRIMARY KEY,
                 customer_lifetime_value     NUMERIC(14,2) NOT NULL
             )
-        """))                                                                    # CLV dimension
-        conn.execute(text(f"""
+        """
+            )
+        )  # CLV dimension
+        conn.execute(
+            text(
+                f"""
             CREATE TABLE IF NOT EXISTS {WAREHOUSE_SCHEMA}.fact_recommendations (
                 product_id_x        INT NOT NULL,
                 product_id_y        INT NOT NULL,
                 co_purchase_count   INT NOT NULL,
                 PRIMARY KEY (product_id_x, product_id_y)
             )
-        """))                                                                    # Recommendation pairs fact-like table
+        """
+            )
+        )  # Recommendation pairs fact-like table
 
 
-def load_warehouse(engine, clv: pd.DataFrame, recs: pd.DataFrame,
-                   daily: pd.DataFrame, weekly: pd.DataFrame, monthly: pd.DataFrame):
+def load_warehouse(
+    engine,
+    clv: pd.DataFrame,
+    recs: pd.DataFrame,
+    daily: pd.DataFrame,
+    weekly: pd.DataFrame,
+    monthly: pd.DataFrame,
+):
     """
     Load transformed dataframes into the warehouse tables (replace full snapshots).
     """
-    ensure_warehouse(engine)                                                   # Ensure target tables exist first
-    clv.to_sql("dim_customer_value", engine, schema=WAREHOUSE_SCHEMA, if_exists="replace", index=False)     # Load CLV
-    recs.to_sql("fact_recommendations", engine, schema=WAREHOUSE_SCHEMA, if_exists="replace", index=False) # Load recs
-    daily.to_sql("fact_daily_sales", engine, schema=WAREHOUSE_SCHEMA, if_exists="replace", index=False)     # Load daily
-    weekly.to_sql("fact_weekly_sales", engine, schema=WAREHOUSE_SCHEMA, if_exists="replace", index=False)   # Load weekly
-    monthly.to_sql("fact_monthly_sales", engine, schema=WAREHOUSE_SCHEMA, if_exists="replace", index=False) # Load monthly
-    log.info("Loaded CLV, recommendations, and time aggregations into warehouse.")                          # Log success
+    ensure_warehouse(engine)  # Ensure target tables exist first
+    clv.to_sql(
+        "dim_customer_value",
+        engine,
+        schema=WAREHOUSE_SCHEMA,
+        if_exists="replace",
+        index=False,
+    )  # Load CLV
+    recs.to_sql(
+        "fact_recommendations",
+        engine,
+        schema=WAREHOUSE_SCHEMA,
+        if_exists="replace",
+        index=False,
+    )  # Load recs
+    daily.to_sql(
+        "fact_daily_sales",
+        engine,
+        schema=WAREHOUSE_SCHEMA,
+        if_exists="replace",
+        index=False,
+    )  # Load daily
+    weekly.to_sql(
+        "fact_weekly_sales",
+        engine,
+        schema=WAREHOUSE_SCHEMA,
+        if_exists="replace",
+        index=False,
+    )  # Load weekly
+    monthly.to_sql(
+        "fact_monthly_sales",
+        engine,
+        schema=WAREHOUSE_SCHEMA,
+        if_exists="replace",
+        index=False,
+    )  # Load monthly
+    log.info(
+        "Loaded CLV, recommendations, and time aggregations into warehouse."
+    )  # Log success
 
 
 # -----------------------
 # Orchestration (single entry point)
 # -----------------------
+
 
 def run():
     """
@@ -386,37 +552,47 @@ def run():
       4) Load into warehouse schema
       5) Log performance metrics
     """
-    started = time.time()                                                      # Start timer for performance metrics
+    started = time.time()  # Start timer for performance metrics
 
     # 1) Extract
-    csv_data = extract_from_csv()                                              # Extract local CSVs
-    db_data = extract_from_db(ENGINE)                                          # Extract from DB
+    csv_data = extract_from_csv()  # Extract local CSVs
+    db_data = extract_from_db(ENGINE)  # Extract from DB
     # For S3, pass a partition you know exists; example path below can be adapted:
     # s3_data = extract_from_s3("raw/year=2025/month=10/day=26")              # Example; uncomment when ready
 
     # 2) Build fact from DB (clean) or CSV; prefer DB if available
-    produtos = db_data["produtos"]                                             # Products from DB
-    transacoes = db_data["transacoes"]                                         # Transactions from DB
-    itens = db_data["transacao_itens"]                                         # Transaction items from DB
-    fact = _prepare_transaction_fact(transacoes, itens, produtos)              # Compose transaction fact
+    produtos = db_data["produtos"]  # Products from DB
+    transacoes = db_data["transacoes"]  # Transactions from DB
+    itens = db_data["transacao_itens"]  # Transaction items from DB
+    fact = _prepare_transaction_fact(
+        transacoes, itens, produtos
+    )  # Compose transaction fact
 
     # 3) Transformations required by spec
-    clv = transform_clv(fact)                                                  # CLV per customer
-    recs = transform_recommendations(fact)                                     # Product co-occurrence pairs
-    daily, weekly, monthly = transform_time_aggregations(fact)                 # Time-based revenue facts
+    clv = transform_clv(fact)  # CLV per customer
+    recs = transform_recommendations(fact)  # Product co-occurrence pairs
+    daily, weekly, monthly = transform_time_aggregations(
+        fact
+    )  # Time-based revenue facts
 
     # 4) SCD Type 2 dimension maintenance (products)
-    scd2_upsert_dim_products(ENGINE, produtos[["id", "nome", "categoria", "fornecedor", "preco"]])  # SCD2 on products
+    scd2_upsert_dim_products(
+        ENGINE, produtos[["id", "nome", "categoria", "fornecedor", "preco"]]
+    )  # SCD2 on products
 
     # 5) Load to warehouse schema (star/snowflake)
-    load_warehouse(ENGINE, clv, recs, daily, weekly, monthly)                  # Load all transformed datasets
+    load_warehouse(
+        ENGINE, clv, recs, daily, weekly, monthly
+    )  # Load all transformed datasets
 
     # 6) Performance metrics
-    elapsed = time.time() - started                                            # Compute elapsed seconds
-    log.info(f"ETL completed in {elapsed:.2f} seconds. Rows -> "
-             f"CLV: {len(clv)}, RECS: {len(recs)}, DAILY: {len(daily)}, WEEKLY: {len(weekly)}, MONTHLY: {len(monthly)}")
-                                                                                # Log record counts as basic metrics
+    elapsed = time.time() - started  # Compute elapsed seconds
+    log.info(
+        f"ETL completed in {elapsed:.2f} seconds. Rows -> "
+        f"CLV: {len(clv)}, RECS: {len(recs)}, DAILY: {len(daily)}, WEEKLY: {len(weekly)}, MONTHLY: {len(monthly)}"
+    )
+    # Log record counts as basic metrics
 
 
-if __name__ == "__main__":                 # Standard Python entry point guard
-    run()                                   # Run orchestration when invoked as a script
+if __name__ == "__main__":  # Standard Python entry point guard
+    run()  # Run orchestration when invoked as a script
