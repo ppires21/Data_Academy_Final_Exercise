@@ -86,12 +86,20 @@ def run_quality_checks() -> None:
 
     # Read data to validate
     schema = cfg["db_schema"]  # Source normalized schema
-    clientes = pd.read_sql(f"SELECT * FROM {schema}.clientes", ENGINE)  # Load customers
-    produtos = pd.read_sql(f"SELECT * FROM {schema}.produtos", ENGINE)  # Load products
-    transacoes = pd.read_sql(
-        f"SELECT * FROM {schema}.transacoes", ENGINE
-    )  # Load transactions
-    itens = pd.read_sql(f"SELECT * FROM {schema}.transacao_itens", ENGINE)  # Load items
+
+    # CHANGED: use read_sql_table(..., schema=schema) to avoid f-string SQL and satisfy Bandit B608
+    clientes = pd.read_sql_table(
+        "clientes", ENGINE, schema=schema
+    )  # Load customers (safe, no raw SQL)
+    produtos = pd.read_sql_table(
+        "produtos", ENGINE, schema=schema
+    )  # Load products (safe)
+    transacoes = pd.read_sql_table(
+        "transacoes", ENGINE, schema=schema
+    )  # Load transactions (safe)
+    itens = pd.read_sql_table(
+        "transacao_itens", ENGINE, schema=schema
+    )  # Load items (safe)
 
     # Run expectation suites
     errors: Dict[str, List[str]] = {}  # Map table -> list of errors
