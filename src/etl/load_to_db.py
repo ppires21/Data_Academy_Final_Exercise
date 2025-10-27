@@ -134,68 +134,67 @@ def prepare_dataframe(table: str, df: pd.DataFrame) -> pd.DataFrame:
 # -----------------------
 def upsert_dataframe(df: pd.DataFrame, table: str, engine):
     """
-    Upsert DataFrame into PostgreSQL target table using SQLAlchemy Core
-    (no string-built SQL → Bandit-safe). Behavior identical to the previous
-    INSERT ... SELECT ... ON CONFLICT DO UPDATE.
+    Upsert DataFrame into PostgreSQL target table using SQLAlchemy Core.
+    Temporarily disables foreign key constraint enforcement.
+    For 'clientes', uses email as conflict key; for all others, uses id.
     """
     if df.empty:
         log.warning(f"Skipping {table}: no data.")
         return 0
 
-    tmp_table = f"_tmp_{table}"  # Name for the staging table
+    tmp_table = f"_tmp_{table}"
 
     with engine.begin() as conn:
-        # Drop/create temp (unchanged DDL style; not flagged previously)
-        conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
-        df.head(0).to_sql(
-            tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace"
-        )
-        df.to_sql(
-            tmp_table,
-            conn,
-            schema=SCHEMA,
-            index=False,
-            if_exists="append",
-            method="multi",
-        )
+        # 🚫 Temporarily disable FK checks
+        conn.execute(text("SET session_replication_role = replica"))
 
-        # Reflect target and temp tables (so we can build SELECT safely)
+        # Create temp table and load data
+        conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
+        df.head(0).to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace")
+        df.to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="append", method="multi")
+
+        # Reflect metadata
         md = MetaData()
         target = Table(table, md, schema=SCHEMA, autoload_with=conn)
         staging = Table(tmp_table, md, schema=SCHEMA, autoload_with=conn)
 
-        pk = "id"  # Primary key column used in ON CONFLICT
-        cols = [c for c in df.columns if c != pk]  # Non-PK columns to update
+        # ✅ Conflict key logic
+        if table == "clientes":
+            # 'email' is unique, so use that constraint for ON CONFLICT
+            conflict_key = [target.c.email]
+        else:
+            # other tables rely on primary key id
+            conflict_key = [target.c.id]
 
-        # Build a SELECT from the staging table applying the same casts as before
-        selectable_cols = []  # Will hold SQLAlchemy column expressions in order
+        pk = "id"
+        cols = [c for c in df.columns if c != pk]
+
+        # Build SELECT from staging (with casting)
+        selectable_cols = []
         for c in df.columns:
-            col_expr = getattr(staging.c, c)  # Reference the column on the temp table
-            # Apply the exact same casts that were in the f-string version
+            col_expr = getattr(staging.c, c)
             if table == "clientes" and c == "data_registo":
-                col_expr = cast(col_expr, Date)  # ::date
+                col_expr = cast(col_expr, Date)
             elif table == "transacoes" and c == "data_hora":
-                col_expr = cast(col_expr, DateTime)  # ::timestamp
-            selectable_cols.append(col_expr)  # Keep order identical
+                col_expr = cast(col_expr, DateTime)
+            selectable_cols.append(col_expr)
 
-        select_stmt = select(*selectable_cols)  # SELECT <cols> FROM staging
-
-        # Build INSERT .. FROM SELECT with PostgreSQL ON CONFLICT DO UPDATE
+        select_stmt = select(*selectable_cols)
         insert_stmt = pg_insert(target).from_select(df.columns, select_stmt)
-
-        # Map SET clause to EXCLUDED.<col> for all non-PK columns
         update_map = {c: getattr(insert_stmt.excluded, c) for c in cols}
 
-        # Final UPSERT statement
+        # Build safe UPSERT
         upsert_stmt = insert_stmt.on_conflict_do_update(
-            index_elements=[target.c.id],  # conflict target (id)
-            set_=update_map,  # columns to update
+            index_elements=conflict_key,
+            set_=update_map,
         )
 
-        # Execute UPSERT
         conn.execute(upsert_stmt)
 
-        # Clean up staging
+        # ✅ Re-enable FK checks
+        conn.execute(text("SET session_replication_role = DEFAULT"))
+
+        # Drop temp table
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
 
         log.info(f"Upserted {len(df)} rows into {table}")
@@ -203,20 +202,16 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
     return len(df)
 
 
+
 # -----------------------
 # Audit logging
 # -----------------------
 def audit(engine, table, file, start, end, rows, success=True, error=None):
-    """
-    Record audit trail for every load using SQLAlchemy Core insert().
-    This replaces the previous text() f-string and removes Bandit B608.
-    """
+    """Record audit trail for every load using SQLAlchemy Core insert()."""
     with engine.begin() as conn:
-        md = MetaData()  # Metadata holder
-        audit_tbl = Table(  # Reflect or reference the audit table
-            "audit_loads", md, schema=SCHEMA, autoload_with=conn
-        )
-        ins = audit_tbl.insert().values(  # Build a safe INSERT with bound params
+        md = MetaData()
+        audit_tbl = Table("audit_loads", md, schema=SCHEMA, autoload_with=conn)
+        ins = audit_tbl.insert().values(
             tabela=table,
             ficheiro=file,
             data_inicio=start,

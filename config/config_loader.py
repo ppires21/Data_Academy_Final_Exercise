@@ -1,5 +1,5 @@
 # =========================================
-# 📄 File: config/config_loader.py
+# File: config/config_loader.py
 # Purpose: Load YAML config (dev/prod), substitute ${ENV_VARS}, validate, and expose helpers
 # =========================================
 

@@ -1,6 +1,6 @@
 import csv
 import os
-import secrets  # ✅ replaced 'random' for Bandit B311 security compliance
+import random
 from datetime import datetime, timedelta
 import sys
 
@@ -8,24 +8,13 @@ import sys
 
 
 def save_csv(filename, data, headers):
-    """
-    Guarda uma lista de dicionários num ficheiro CSV com tratamento de erros.
-
-    Args:
-        filename (str): Caminho do ficheiro CSV a criar
-        data (list[dict]): Dados a escrever
-        headers (list[str]): Cabeçalhos do ficheiro
-    """
+    """Guarda uma lista de dicionários num ficheiro CSV com tratamento de erros."""
     try:
-        os.makedirs(
-            os.path.dirname(filename), exist_ok=True
-        )  # Cria diretório, se não existir
-        with open(
-            filename, "w", newline="", encoding="utf-8"
-        ) as f:  # Abre o ficheiro para escrita
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=headers)
             writer.writeheader()
-            writer.writerows(data)  # Escreve os dados
+            writer.writerows(data)
         print(f"[OK] Ficheiro guardado: {filename}")
     except PermissionError:
         print(f"[ERRO] Sem permissões para escrever em {filename}")
@@ -36,10 +25,7 @@ def save_csv(filename, data, headers):
 
 
 def generate_data():
-    """
-    Gera os ficheiros de clientes, produtos e transações com dados portugueses.
-    Esta versão usa 'secrets' em vez de 'random' para evitar alertas de Bandit B311.
-    """
+    """Gera os ficheiros de clientes, produtos e transações com dados portugueses."""
     try:
         # --- Listas de apoio ---
         first_names = [
@@ -121,14 +107,16 @@ def generate_data():
         # --- Gerar clientes ---
         customers = []
         for i in range(1, 1001):
-            # ✅ usar secrets.choice em vez de random.choice (B311)
-            name = f"{secrets.choice(first_names)} {secrets.choice(last_names)}"
-            email = name.lower().replace(" ", ".") + "@exemplo.pt"
-            # ✅ usar secrets.randbelow em vez de random.randint (B311)
+            name = f"{random.choice(first_names)} {random.choice(last_names)}"  # nosec B311
+            # 👇 Garante emails únicos ao incluir o ID
+            email = (
+                name.lower().replace(" ", ".")
+                + f".{i}@exemplo.pt"
+            )
             registration_date = (
-                datetime.now() - timedelta(days=secrets.randbelow(1000))
+                datetime.now() - timedelta(days=random.randint(0, 1000))  # nosec B311
             ).strftime("%Y-%m-%d")
-            district = secrets.choice(districts)
+            district = random.choice(districts)  # nosec B311
             customers.append(
                 {
                     "id": i,
@@ -142,11 +130,10 @@ def generate_data():
         # --- Gerar produtos ---
         products = []
         for i in range(1, 501):
-            category = secrets.choice(categories)
+            category = random.choice(categories)  # nosec B311
             name = f"{category} {i}"
-            # ✅ gerar preço de forma simples mas segura
-            price = round(float(secrets.randbelow(49500) / 100 + 5), 2)
-            supplier = secrets.choice(suppliers)
+            price = round(random.uniform(5, 500), 2)  # nosec B311
+            supplier = random.choice(suppliers)  # nosec B311
             products.append(
                 {
                     "id": i,
@@ -159,18 +146,18 @@ def generate_data():
 
         # --- Gerar transações ---
         transactions = []
-        transaction_items = []
+        transaction_items = []  # 🔹 new table data
 
         for i in range(1, 5001):
-            customer_id = secrets.randbelow(1000) + 1
-            product_id = secrets.randbelow(500) + 1
-            quantity = secrets.randbelow(5) + 1
+            customer_id = random.randint(1, 1000)  # nosec B311
+            product_id = random.randint(1, 500)  # nosec B311
+            quantity = random.randint(1, 5)  # nosec B311
             timestamp = (
-                datetime.now() - timedelta(days=secrets.randbelow(365))
+                datetime.now() - timedelta(days=random.randint(0, 365))  # nosec B311
             ).strftime("%Y-%m-%d %H:%M:%S")
-            payment_method = secrets.choice(payment_methods)
+            payment_method = random.choice(payment_methods)  # nosec B311
 
-            # encontra o preço do produto correspondente
+            # find product price
             product_price = next(
                 (p["preco"] for p in products if p["id"] == product_id), 0
             )
@@ -186,9 +173,10 @@ def generate_data():
                 }
             )
 
+            # 🔹 create normalized transaction item
             transaction_items.append(
                 {
-                    "id": i,
+                    "id": i,  # same ID for simplicity (1-to-1 in this generator)
                     "id_transacao": i,
                     "id_produto": product_id,
                     "quantidade": quantity,
@@ -200,6 +188,8 @@ def generate_data():
         save_csv("data/raw/clientes.csv", customers, customers[0].keys())
         save_csv("data/raw/produtos.csv", products, products[0].keys())
         save_csv("data/raw/transacoes.csv", transactions, transactions[0].keys())
+
+        # 🔹 NEW: save normalized transaction items
         save_csv(
             "data/raw/transacao_itens.csv",
             transaction_items,

@@ -1,3 +1,6 @@
+SET search_path TO shopflow, public;
+
+
 -- sql/data_analytics.sql
 -- 📊 Análises Básicas — Iteração 2 (PostgreSQL, esquema normalizado)
 -- Tabelas: clientes, produtos, transacoes, transacao_itens

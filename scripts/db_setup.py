@@ -23,6 +23,7 @@ from sqlalchemy import (
     Column,
     UniqueConstraint,
     Index,
+    func,  
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -72,7 +73,11 @@ class Cliente(Base):
     email = Column(String, nullable=False)
     data_registo = Column(Date, nullable=False)
     distrito = Column(String, nullable=False)
-    version_timestamp = Column(DateTime(timezone=True), nullable=False)
+    version_timestamp = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()  # auto-fill with current timestamp on insert
+    )
 
     transacoes = relationship(
         "Transacao", back_populates="cliente", cascade="all, delete-orphan"
@@ -90,7 +95,11 @@ class Produto(Base):
     categoria = Column(String, index=True, nullable=False)
     preco = Column(Numeric(10, 2), nullable=False)
     fornecedor = Column(String, nullable=False)
-    version_timestamp = Column(DateTime(timezone=True), nullable=False)
+    version_timestamp = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()  # auto-fill with current timestamp on insert
+    )
 
     itens_transacao = relationship(
         "TransacaoItem", back_populates="produto", cascade="all, delete-orphan"
@@ -113,7 +122,11 @@ class Transacao(Base):
     )
     data_hora = Column(DateTime, nullable=False)
     metodo_pagamento = Column(String, nullable=False)
-    version_timestamp = Column(DateTime(timezone=True), nullable=False)
+    version_timestamp = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()  # auto-fill with current timestamp on insert
+    )
 
     cliente = relationship("Cliente", back_populates="transacoes")
     itens = relationship(
@@ -142,7 +155,11 @@ class TransacaoItem(Base):
     )
     quantidade = Column(Integer, nullable=False)
     preco_unitario = Column(Numeric(10, 2), nullable=False)
-    version_timestamp = Column(DateTime(timezone=True), nullable=False)
+    version_timestamp = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now()  # auto-fill with current timestamp on insert
+    )
 
     transacao = relationship("Transacao", back_populates="itens")
     produto = relationship("Produto", back_populates="itens_transacao")
