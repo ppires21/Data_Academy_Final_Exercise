@@ -19,6 +19,12 @@ from sqlalchemy import MetaData, Table, select, cast
 from sqlalchemy.types import Date, DateTime
 from sqlalchemy.dialects.postgresql import insert as pg_insert  # PostgreSQL UPSERT
 
+# 🔗 NEW: pull env-aware config (dev/prod) so schema/DB/bucket stay consistent
+from config.config_loader import get_config, build_db_url
+
+# Load YAML (ENV=dev|prod) once
+cfg = get_config()
+
 # -----------------------
 # Logging setup
 # -----------------------
@@ -38,23 +44,17 @@ TABLES = {
     "transacoes": "transacoes.csv",
     "transacao_itens": "transacao_itens.csv",
 }
-SCHEMA = os.getenv("DB_SCHEMA", "public")
-
-
-def build_db_url():
-    """Build PostgreSQL connection string (local or RDS)."""
-    return os.getenv(
-        "DATABASE_URL",
-        f"postgresql+psycopg2://{os.getenv('PGUSER','postgres')}:{os.getenv('PGPASSWORD','')}@{os.getenv('PGHOST','localhost')}:{os.getenv('PGPORT','5432')}/{os.getenv('PGDATABASE','shopflow_db')}",
-    )
+SCHEMA = cfg["db_schema"]
 
 
 # -----------------------
 # Database helpers
 # -----------------------
 def get_engine():
-    url = build_db_url()
-    safe_url = url.replace(os.getenv("PGPASSWORD", ""), "***")
+    url = build_db_url(cfg)
+    #mask actual password from logs using cfg
+    pwd = str(cfg["database"]["password"])
+    safe_url = url.replace(pwd, "***")
     log.info(f"Connecting to: {safe_url}")
     return create_engine(url, future=True)
 
@@ -135,8 +135,16 @@ def prepare_dataframe(table: str, df: pd.DataFrame) -> pd.DataFrame:
 def upsert_dataframe(df: pd.DataFrame, table: str, engine):
     """
     Upsert DataFrame into PostgreSQL target table using SQLAlchemy Core.
-    Temporarily disables foreign key constraint enforcement.
-    For 'clientes', uses email as conflict key; for all others, uses id.
+
+    Key points:
+      - Creates a staging table and bulk-loads the CSV into it.
+      - INSERT ... ON CONFLICT DO UPDATE into the real table.
+      - Explicitly sets version_timestamp = NOW() on both INSERT and UPDATE
+        to avoid NULLs even if the DB default is missing.
+      - Temporarily disables FK checks to simplify load ordering.
+
+    Returns:
+      Number of rows processed from the DataFrame.
     """
     if df.empty:
         log.warning(f"Skipping {table}: no data.")
@@ -145,40 +153,24 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
     tmp_table = f"_tmp_{table}"
 
     with engine.begin() as conn:
-        # 🚫 Temporarily disable FK checks
         conn.execute(text("SET session_replication_role = replica"))
 
-        # Create temp table and load data
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
-        df.head(0).to_sql(
-            tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace"
-        )
-        df.to_sql(
-            tmp_table,
-            conn,
-            schema=SCHEMA,
-            index=False,
-            if_exists="append",
-            method="multi",
-        )
+        df.head(0).to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace")
+        df.to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="append", method="multi")
 
-        # Reflect metadata
         md = MetaData()
         target = Table(table, md, schema=SCHEMA, autoload_with=conn)
         staging = Table(tmp_table, md, schema=SCHEMA, autoload_with=conn)
 
-        # ✅ Conflict key logic
-        if table == "clientes":
-            # 'email' is unique, so use that constraint for ON CONFLICT
-            conflict_key = [target.c.email]
-        else:
-            # other tables rely on primary key id
-            conflict_key = [target.c.id]
+        # -- if table == "clientes":
+        # --     conflict_key = [target.c.email]
+        # ++ Always upsert by primary key id (including clientes) to avoid PK conflicts
+        conflict_key = [target.c.id]
 
         pk = "id"
-        cols = [c for c in df.columns if c != pk]
 
-        # Build SELECT from staging (with casting)
+        insert_cols = list(df.columns)
         selectable_cols = []
         for c in df.columns:
             col_expr = getattr(staging.c, c)
@@ -188,11 +180,14 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
                 col_expr = cast(col_expr, DateTime)
             selectable_cols.append(col_expr)
 
-        select_stmt = select(*selectable_cols)
-        insert_stmt = pg_insert(target).from_select(df.columns, select_stmt)
-        update_map = {c: getattr(insert_stmt.excluded, c) for c in cols}
+        insert_cols.append("version_timestamp")
+        selectable_cols.append(text("NOW()"))
 
-        # Build safe UPSERT
+        insert_stmt = pg_insert(target).from_select(insert_cols, select(*selectable_cols))
+
+        update_map = {c: getattr(insert_stmt.excluded, c) for c in df.columns if c != pk}
+        update_map["version_timestamp"] = text("NOW()")
+
         upsert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=conflict_key,
             set_=update_map,
@@ -200,15 +195,14 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
 
         conn.execute(upsert_stmt)
 
-        # ✅ Re-enable FK checks
         conn.execute(text("SET session_replication_role = DEFAULT"))
-
-        # Drop temp table
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
 
         log.info(f"Upserted {len(df)} rows into {table}")
 
     return len(df)
+
+
 
 
 # -----------------------

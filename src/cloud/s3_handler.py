@@ -23,11 +23,13 @@ from typing import Dict, Optional
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
+from config.config_loader import get_config
 
 # -----------------------
 # Configuration
 # -----------------------
-S3_BUCKET = "ctw04557-ppires-academy-finalexercise-bucket"
+cfg = get_config()
+S3_BUCKET = cfg["s3_bucket"]  # ✅ dev/prod buckets come from config files
 
 # -----------------------
 # Logging
@@ -37,6 +39,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 log = logging.getLogger(__name__)
+log.info(f"Running in ENV={cfg['environment']} | bucket={S3_BUCKET}")
 
 # -----------------------
 # Constants

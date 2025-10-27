@@ -10,7 +10,7 @@ import os  # Used for path handling and environment access
 import io  # Used to read S3 object byte streams into pandas
 import time  # Used to measure processing time for performance metrics
 import logging  # Used for structured logging of pipeline stages
-from datetime import datetime  # Used for timestamps (e.g., SCD Type 2 validity)
+from datetime import datetime, timezone  # timezone-aware UTC
 from typing import Tuple, Dict  # Type hints for readability
 import pandas as pd  # Core data manipulation library
 from sqlalchemy import (
@@ -56,6 +56,50 @@ RAW_DIR = "data/raw"  # Local CSV directory for the CSV source
 S3_BUCKET = cfg["s3_bucket"]  # Bucket name for S3 source
 AWS_REGION = cfg["aws_region"]  # Region for making the S3 client
 S3 = boto3.client("s3", region_name=AWS_REGION)  # S3 client configured with region
+
+
+
+# -----------------------
+# Select fact source - dev vs prod
+# -----------------------
+
+def select_fact_source(env: str,
+                       csv_data: Dict[str, pd.DataFrame],
+                       db_data: Dict[str, pd.DataFrame],
+                       s3_data: Dict[str, pd.DataFrame] | None = None) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Decide de onde vêm os DataFrames base para montar a fact, consoante o ambiente.
+
+    Regras:
+      - DEV  -> usar CSV locais (data/raw/*) para facilitar o desenvolvimento.
+      - PROD -> usar DB (RDS) como fonte "verdadeira".
+      - S3   -> opcional; se fornecido, pode ser usado em DEV (quando não há CSV)
+               ou em PROD para validação (não obrigatório para a fact).
+
+    Retorna: (transacoes_df, itens_df, produtos_df)
+    """
+    # Normaliza o nome do ambiente para evitar surpresas (e.g., "Prod" vs "prod")
+    env = (env or "").lower()
+
+    # DEV: preferir CSV (mais rápido e sem dependência de DB)
+    if env == "dev":
+        # Valida que temos as peças necessárias nos CSV
+        if not all(k in csv_data for k in ("transacoes", "transacao_itens", "produtos")):
+            # Se faltar algo nos CSV, tenta cair para S3 (se existir) antes de falhar
+            if s3_data and all(k in s3_data for k in ("transacoes", "produtos")):
+                # Em S3 não temos "transacao_itens" no teu código — avisa e falha explicitamente
+                raise RuntimeError("DEV: CSV em falta e S3 não contém 'transacao_itens'. Adiciona CSV local de itens.")
+            raise RuntimeError("DEV: Faltam CSVs necessários (transacoes, transacao_itens, produtos) em data/raw.")
+        return csv_data["transacoes"], csv_data["transacao_itens"], csv_data["produtos"]
+
+    # PROD: usar DB (RDS) como fonte principal
+    # Garante que as três tabelas existem
+
+    if not all(k in db_data for k in ("transacoes", "transacao_itens", "produtos")):
+        raise RuntimeError("PROD: Tabelas necessárias em DB em falta (transacoes, transacao_itens, produtos).")
+
+    return db_data["transacoes"], db_data["transacao_itens"], db_data["produtos"]
+
 
 
 # -----------------------
@@ -323,7 +367,7 @@ def scd2_upsert_dim_products(engine, source_products: pd.DataFrame):
 
     # 🔁 CHANGED: use read_sql_table instead of f-string SELECT
     current_dim = pd.read_sql_table("dim_products", ENGINE, schema=WAREHOUSE_SCHEMA)
-    now = datetime.utcnow()  # Use UTC timestamp for validity windows
+    now = datetime.now(timezone.utc)  # Use timezone-aware UTC
 
     # If dimension empty, insert all as current versions
     if current_dim.empty:  # First load case
@@ -540,53 +584,89 @@ def load_warehouse(
 
 def run():
     """
-    Orchestrates:
-      1) Extract from CSV, DB, and S3 (CSV + DB mandatory; S3 optional but included to meet spec)
-      2) Transform to compute CLV, recommendation features, and time aggregations
-      3) SCD Type 2 for products
-      4) Load into warehouse schema
-      5) Log performance metrics
+    Orquestração com ramificação por ambiente:
+      - DEV: usa CSV locais para montar a fact (rápido e simples).
+      - PROD: usa DB (RDS) para a fact e lê S3 (opcional) para validações/integrações.
+
+    Passos:
+      1) Extract (CSV + DB; S3 opcional em ambos; em PROD é mais relevante).
+      2) Escolha da fonte para a fact (DEV=CSV, PROD=DB).
+      3) Transform (CLV, recomendações, agregações).
+      4) SCD2 em produtos (dim_products).
+      5) Load para schema de warehouse (star/snowflake minimalista).
+      6) Métricas de desempenho (logging).
     """
-    started = time.time()  # Start timer for performance metrics
+    # Inicia cronómetro para medir desempenho total
+    started = time.time()
 
-    # 1) Extract
-    csv_data = extract_from_csv()  # Extract local CSVs
-    db_data = extract_from_db(ENGINE)  # Extract from DB
-    # For S3, pass a partition you know exists; example path below can be adapted:
-    # s3_data = extract_from_s3("raw/year=2025/month=10/day=26")              # Example; uncomment when ready
+    # Lê o ambiente a partir da config carregada (dev/prod)
+    env = cfg.get("environment", "dev").lower()
 
-    # 2) Build fact from DB (clean) or CSV; prefer DB if available
-    produtos = db_data["produtos"]  # Products from DB
-    transacoes = db_data["transacoes"]  # Transactions from DB
-    itens = db_data["transacao_itens"]  # Transaction items from DB
-    fact = _prepare_transaction_fact(
-        transacoes, itens, produtos
-    )  # Compose transaction fact
+    # ---------------------------------
+    # 1) EXTRACT
+    # ---------------------------------
+    # Extrai sempre CSV locais (úteis em DEV, ou como referência em PROD)
+    csv_data = extract_from_csv()
 
-    # 3) Transformations required by spec
-    clv = transform_clv(fact)  # CLV per customer
-    recs = transform_recommendations(fact)  # Product co-occurrence pairs
-    daily, weekly, monthly = transform_time_aggregations(
-        fact
-    )  # Time-based revenue facts
+    # Extrai sempre do DB (em DEV pode falhar se não tiveres DB a correr — se for o caso, ignora exceção conforme precisares)
+    db_data = extract_from_db(ENGINE)
 
-    # 4) SCD Type 2 dimension maintenance (products)
+    # Em PROD, tenta também S3 (opcional) — por defeito vamos usar a partição "hoje" (UTC)
+    s3_data = None
+    try:
+        # Constrói prefixo no formato raw/year=YYYY/month=MM/day=DD
+        today = datetime.now(timezone.utc).date()
+        partition_prefix = f"raw/year={today.year}/month={today:%m}/day={today:%d}"
+        # Chama extract_from_s3 com o prefixo construído
+        s3_data = extract_from_s3(partition_prefix)
+    except Exception as e:
+        # Não falhar a pipeline por falta de S3; regista apenas aviso (sobretudo útil em DEV)
+        log.warning(f"S3 extract skipped or failed: {e}")
+
+    # ---------------------------------
+    # 2) ESCOLHER FONTE PARA FACT
+    # ---------------------------------
+    # Usa a função de seleção para decidir de onde vêm transações/itens/produtos
+    transacoes_df, itens_df, produtos_df = select_fact_source(env, csv_data, db_data, s3_data)
+
+    # Monta a fact de transações (junta itens + preço do produto + timestamp/cliente da transação)
+    fact = _prepare_transaction_fact(transacoes_df, itens_df, produtos_df)
+
+    # ---------------------------------
+    # 3) TRANSFORM
+    # ---------------------------------
+    # CLV por cliente (soma do total_linha)
+    clv = transform_clv(fact)
+
+    # Pares de co-ocorrência para recomendações (X comprou com Y)
+    recs = transform_recommendations(fact)
+
+    # Agregações por dia/semana/mês
+    daily, weekly, monthly = transform_time_aggregations(fact)
+
+    # ---------------------------------
+    # 4) SCD TYPE 2 (produtos)
+    # ---------------------------------
+    # Mantém a dimensão de produtos com histórico de preço
     scd2_upsert_dim_products(
-        ENGINE, produtos[["id", "nome", "categoria", "fornecedor", "preco"]]
-    )  # SCD2 on products
-
-    # 5) Load to warehouse schema (star/snowflake)
-    load_warehouse(
-        ENGINE, clv, recs, daily, weekly, monthly
-    )  # Load all transformed datasets
-
-    # 6) Performance metrics
-    elapsed = time.time() - started  # Compute elapsed seconds
-    log.info(
-        f"ETL completed in {elapsed:.2f} seconds. Rows -> "
-        f"CLV: {len(clv)}, RECS: {len(recs)}, DAILY: {len(daily)}, WEEKLY: {len(weekly)}, MONTHLY: {len(monthly)}"
+        ENGINE,
+        produtos_df[["id", "nome", "categoria", "fornecedor", "preco"]],
     )
-    # Log record counts as basic metrics
+
+    # ---------------------------------
+    # 5) LOAD (WAREHOUSE)
+    # ---------------------------------
+    load_warehouse(ENGINE, clv, recs, daily, weekly, monthly)
+
+    # ---------------------------------
+    # 6) MÉTRICAS / LOGS
+    # ---------------------------------
+    elapsed = time.time() - started
+    log.info(
+        f"[{env.upper()}] ETL completed in {elapsed:.2f}s | "
+        f"CLV={len(clv)} RECS={len(recs)} DAILY={len(daily)} WEEKLY={len(weekly)} MONTHLY={len(monthly)}"
+    )
+
 
 
 if __name__ == "__main__":  # Standard Python entry point guard

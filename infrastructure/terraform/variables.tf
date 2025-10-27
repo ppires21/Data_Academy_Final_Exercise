@@ -12,7 +12,7 @@ variable "aws_region" {                            # Região AWS a usar
 variable "profile" {                               # Nome do profile AWS (credentials)
   type        = string                             # Tipo string
   description = "AWS named profile from ~/.aws/credentials"
-  default     = "default"                          # Podes ajustar para o teu profile
+  default     = "data-academy"                          # Podes ajustar para o teu profile
 }
 
 variable "environment" {                           # Ambiente (ex.: dev, demo, prod)

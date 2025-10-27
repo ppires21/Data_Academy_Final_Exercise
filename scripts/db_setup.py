@@ -53,6 +53,31 @@ SCHEMA = cfg["db_schema"]
 # 4️⃣ Initialize SQLAlchemy base class for ORM mapping
 Base = declarative_base()
 
+# To ensure that the database exists
+def ensure_database_exists(cfg):
+    """
+    Garante que o database definido em cfg['database']['name'] existe.
+    Liga primeiro ao DB 'postgres' (que existe por defeito no RDS) e cria se faltar.
+    """
+    target_db = cfg["database"]["name"]
+    # construir URL de admin ligando ao DB 'postgres'
+    admin_cfg = {**cfg, "database": {**cfg["database"], "name": "postgres"}}
+    admin_url = build_db_url(admin_cfg)
+    # mascarar password no log
+    masked = admin_url.replace(str(cfg["database"]["password"]), "***")
+    log.info(f"Ensuring database '{target_db}' exists (admin connect: {masked})")
+    admin_engine = create_engine(admin_url, future=True, isolation_level="AUTOCOMMIT")
+    with admin_engine.connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM pg_database WHERE datname = :n"),
+            {"n": target_db},
+        ).scalar()
+        if not exists:
+            conn.execute(text(f'CREATE DATABASE "{target_db}"'))
+            log.info(f"Created database '{target_db}'.")
+        else:
+            log.info(f"Database '{target_db}' already exists.")
+    admin_engine.dispose()
 
 # -----------------------
 # ORM Models (Portuguese)
@@ -290,13 +315,15 @@ def main():
     """
     Main execution flow:
     - Reads config
-    - Creates engine
+    - Ensures database exists (RDS) and creates engine
     - Ensures schema
     - Creates/drops tables
     - Creates views
     """
     args = parse_args()
     try:
+        # cria DB se não existir (ex.: em RDS acabada de criar)
+        ensure_database_exists(cfg)
         engine = get_engine(echo=args.echo)
         ensure_schema(engine)
 

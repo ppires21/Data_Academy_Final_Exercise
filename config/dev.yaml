@@ -6,7 +6,7 @@
 environment: dev                      # Human-readable environment name; used by logs and validation
 debug: true                           # Enables verbose behavior (e.g., SQLAlchemy echo)
 log_level: DEBUG                      # Python logging level for development
-db_schema: public                     # Database schema to use locally (your tables live here)
+db_schema: shopflow                     # Database schema to use locally (your tables live here)
 aws_region: eu-central-1              # AWS region used by clients like boto3 (Frankfurt)
 
 s3_bucket: ctw04557-ppires-academy-finalexercise-bucket-dev

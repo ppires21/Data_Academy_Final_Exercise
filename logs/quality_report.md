@@ -1,11 +1,11 @@
 # Data Quality Report
 
-- Generated at: 2025-10-26 17:07:00Z
-- Environment: **dev**
+- Generated at: 2025-10-27 21:23:58Z
+- Environment: **prod**
 
 ## Lineage (simplified)
 - Source: PostgreSQL normalized schema (Iteration 2 load)
-- Schema: `public` → Validated tables: clientes, produtos, transacoes, transacao_itens
+- Schema: `shopflow` → Validated tables: clientes, produtos, transacoes, transacao_itens
 - Downstream targets: warehouse schema tables (Iteration 3)
 
 ## Expectations Summary
