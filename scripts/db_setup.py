@@ -23,7 +23,7 @@ from sqlalchemy import (
     Column,
     UniqueConstraint,
     Index,
-    func,  
+    func,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -76,7 +76,7 @@ class Cliente(Base):
     version_timestamp = Column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now()  # auto-fill with current timestamp on insert
+        server_default=func.now(),  # auto-fill with current timestamp on insert
     )
 
     transacoes = relationship(
@@ -98,7 +98,7 @@ class Produto(Base):
     version_timestamp = Column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now()  # auto-fill with current timestamp on insert
+        server_default=func.now(),  # auto-fill with current timestamp on insert
     )
 
     itens_transacao = relationship(
@@ -125,7 +125,7 @@ class Transacao(Base):
     version_timestamp = Column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now()  # auto-fill with current timestamp on insert
+        server_default=func.now(),  # auto-fill with current timestamp on insert
     )
 
     cliente = relationship("Cliente", back_populates="transacoes")
@@ -158,7 +158,7 @@ class TransacaoItem(Base):
     version_timestamp = Column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now()  # auto-fill with current timestamp on insert
+        server_default=func.now(),  # auto-fill with current timestamp on insert
     )
 
     transacao = relationship("Transacao", back_populates="itens")

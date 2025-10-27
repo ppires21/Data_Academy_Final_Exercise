@@ -150,8 +150,17 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
 
         # Create temp table and load data
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
-        df.head(0).to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace")
-        df.to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="append", method="multi")
+        df.head(0).to_sql(
+            tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace"
+        )
+        df.to_sql(
+            tmp_table,
+            conn,
+            schema=SCHEMA,
+            index=False,
+            if_exists="append",
+            method="multi",
+        )
 
         # Reflect metadata
         md = MetaData()
@@ -200,7 +209,6 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
         log.info(f"Upserted {len(df)} rows into {table}")
 
     return len(df)
-
 
 
 # -----------------------

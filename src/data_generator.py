@@ -109,10 +109,7 @@ def generate_data():
         for i in range(1, 1001):
             name = f"{random.choice(first_names)} {random.choice(last_names)}"  # nosec B311
             # 👇 Garante emails únicos ao incluir o ID
-            email = (
-                name.lower().replace(" ", ".")
-                + f".{i}@exemplo.pt"
-            )
+            email = name.lower().replace(" ", ".") + f".{i}@exemplo.pt"
             registration_date = (
                 datetime.now() - timedelta(days=random.randint(0, 1000))  # nosec B311
             ).strftime("%Y-%m-%d")
