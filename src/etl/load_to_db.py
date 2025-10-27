@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from sqlalchemy import create_engine, text  # keep text for DDL
 import pandas as pd
 
-# 👇 NEW imports for safe SQL construction
+# NEW imports for safe SQL construction
 from sqlalchemy import MetaData, Table, select, cast
 from sqlalchemy.types import Date, DateTime
 from sqlalchemy.dialects.postgresql import insert as pg_insert  # PostgreSQL UPSERT
