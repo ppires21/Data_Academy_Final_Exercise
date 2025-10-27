@@ -56,28 +56,62 @@ Base = declarative_base()
 # To ensure that the database exists
 def ensure_database_exists(cfg):
     """
-    Garante que o database definido em cfg['database']['name'] existe.
-    Liga primeiro ao DB 'postgres' (que existe por defeito no RDS) e cria se faltar.
+    Garante que cfg['database']['name'] existe.
+    Liga primeiro a uma DB administrativa robusta:
+    - usa cfg.database.admin_db se existir
+    - caso contrário tenta 'template1' e depois 'postgres'
+    - como último recurso tenta ligar diretamente ao database alvo (se já existir)
     """
     target_db = cfg["database"]["name"]
-    # construir URL de admin ligando ao DB 'postgres'
-    admin_cfg = {**cfg, "database": {**cfg["database"], "name": "postgres"}}
-    admin_url = build_db_url(admin_cfg)
-    # mascarar password no log
-    masked = admin_url.replace(str(cfg["database"]["password"]), "***")
-    log.info(f"Ensuring database '{target_db}' exists (admin connect: {masked})")
-    admin_engine = create_engine(admin_url, future=True, isolation_level="AUTOCOMMIT")
-    with admin_engine.connect() as conn:
-        exists = conn.execute(
-            text("SELECT 1 FROM pg_database WHERE datname = :n"),
-            {"n": target_db},
-        ).scalar()
-        if not exists:
-            conn.execute(text(f'CREATE DATABASE "{target_db}"'))
-            log.info(f"Created database '{target_db}'.")
-        else:
-            log.info(f"Database '{target_db}' already exists.")
-    admin_engine.dispose()
+
+    # 1) Escolha de candidatos para DB administrativa
+    admin_db_cfg = cfg["database"].get("admin_db")
+    candidates = []
+    if admin_db_cfg:
+        candidates.append(admin_db_cfg)
+    # fallback padrão, em ordem segura
+    candidates.extend(["template1", "postgres", target_db])
+
+    last_error = None
+    for admin_db in candidates:
+        try:
+            # construir URL de admin com o candidato
+            admin_cfg = {**cfg, "database": {**cfg["database"], "name": admin_db}}
+            admin_url = build_db_url(admin_cfg)
+
+            # mascarar password no log
+            pw = str(cfg["database"]["password"])
+            masked = admin_url.replace(pw, "***")
+            log.info(f"Ensuring database '{target_db}' exists (admin connect: {masked})")
+
+            # AUTOCOMMIT para CREATE DATABASE fora de transação
+            admin_engine = create_engine(admin_url, future=True, isolation_level="AUTOCOMMIT")
+            with admin_engine.connect() as conn:
+                # Se já estivermos ligados ao próprio target_db, consideramos existente
+                if admin_db == target_db:
+                    log.info(f"Database '{target_db}' seems present (connected to it).")
+                    admin_engine.dispose()
+                    return
+
+                # Verificar existência e criar se faltar
+                exists = conn.execute(
+                    text("SELECT 1 FROM pg_database WHERE datname = :n"),
+                    {"n": target_db},
+                ).scalar()
+                if not exists:
+                    conn.execute(text(f'CREATE DATABASE "{target_db}"'))
+                    log.info(f"Created database '{target_db}'.")
+                else:
+                    log.info(f"Database '{target_db}' already exists.")
+            admin_engine.dispose()
+            return  # sucesso → sair
+        except Exception as e:
+            last_error = e
+            log.warning(f"Admin connect via '{admin_db}' failed: {e}; trying next candidate...")
+
+    # Se nenhum candidato funcionou, propaga o último erro
+    raise last_error
+
 
 # -----------------------
 # ORM Models (Portuguese)

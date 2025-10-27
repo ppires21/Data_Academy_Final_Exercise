@@ -1,7 +1,7 @@
 # Data Quality Report
 
-- Generated at: 2025-10-27 21:23:58Z
-- Environment: **prod**
+- Generated at: 2025-10-27 22:05:36Z
+- Environment: **dev**
 
 ## Lineage (simplified)
 - Source: PostgreSQL normalized schema (Iteration 2 load)

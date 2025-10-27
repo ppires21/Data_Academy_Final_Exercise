@@ -13,6 +13,7 @@ s3_bucket: ctw04557-ppires-academy-finalexercise-bucket
 # ^ Real production bucket for raw CSV uploads
 
 database:                             # Production DB settings typically come from env/secret store
+  admin_db: postgres
   host: ${PGHOST}                     # Injected via environment variable PGHOST
   port: ${PGPORT}                     # Injected via environment variable PGPORT
   name: ${PGDATABASE}                 # Injected via environment variable PGDATABASE
