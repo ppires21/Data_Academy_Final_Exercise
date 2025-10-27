@@ -58,15 +58,17 @@ AWS_REGION = cfg["aws_region"]  # Region for making the S3 client
 S3 = boto3.client("s3", region_name=AWS_REGION)  # S3 client configured with region
 
 
-
 # -----------------------
 # Select fact source - dev vs prod
 # -----------------------
 
-def select_fact_source(env: str,
-                       csv_data: Dict[str, pd.DataFrame],
-                       db_data: Dict[str, pd.DataFrame],
-                       s3_data: Dict[str, pd.DataFrame] | None = None) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+def select_fact_source(
+    env: str,
+    csv_data: Dict[str, pd.DataFrame],
+    db_data: Dict[str, pd.DataFrame],
+    s3_data: Dict[str, pd.DataFrame] | None = None,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Decide de onde vêm os DataFrames base para montar a fact, consoante o ambiente.
 
@@ -84,22 +86,29 @@ def select_fact_source(env: str,
     # DEV: preferir CSV (mais rápido e sem dependência de DB)
     if env == "dev":
         # Valida que temos as peças necessárias nos CSV
-        if not all(k in csv_data for k in ("transacoes", "transacao_itens", "produtos")):
+        if not all(
+            k in csv_data for k in ("transacoes", "transacao_itens", "produtos")
+        ):
             # Se faltar algo nos CSV, tenta cair para S3 (se existir) antes de falhar
             if s3_data and all(k in s3_data for k in ("transacoes", "produtos")):
                 # Em S3 não temos "transacao_itens" no teu código — avisa e falha explicitamente
-                raise RuntimeError("DEV: CSV em falta e S3 não contém 'transacao_itens'. Adiciona CSV local de itens.")
-            raise RuntimeError("DEV: Faltam CSVs necessários (transacoes, transacao_itens, produtos) em data/raw.")
+                raise RuntimeError(
+                    "DEV: CSV em falta e S3 não contém 'transacao_itens'. Adiciona CSV local de itens."
+                )
+            raise RuntimeError(
+                "DEV: Faltam CSVs necessários (transacoes, transacao_itens, produtos) em data/raw."
+            )
         return csv_data["transacoes"], csv_data["transacao_itens"], csv_data["produtos"]
 
     # PROD: usar DB (RDS) como fonte principal
     # Garante que as três tabelas existem
 
     if not all(k in db_data for k in ("transacoes", "transacao_itens", "produtos")):
-        raise RuntimeError("PROD: Tabelas necessárias em DB em falta (transacoes, transacao_itens, produtos).")
+        raise RuntimeError(
+            "PROD: Tabelas necessárias em DB em falta (transacoes, transacao_itens, produtos)."
+        )
 
     return db_data["transacoes"], db_data["transacao_itens"], db_data["produtos"]
-
 
 
 # -----------------------
@@ -627,7 +636,9 @@ def run():
     # 2) ESCOLHER FONTE PARA FACT
     # ---------------------------------
     # Usa a função de seleção para decidir de onde vêm transações/itens/produtos
-    transacoes_df, itens_df, produtos_df = select_fact_source(env, csv_data, db_data, s3_data)
+    transacoes_df, itens_df, produtos_df = select_fact_source(
+        env, csv_data, db_data, s3_data
+    )
 
     # Monta a fact de transações (junta itens + preço do produto + timestamp/cliente da transação)
     fact = _prepare_transaction_fact(transacoes_df, itens_df, produtos_df)
@@ -666,7 +677,6 @@ def run():
         f"[{env.upper()}] ETL completed in {elapsed:.2f}s | "
         f"CLV={len(clv)} RECS={len(recs)} DAILY={len(daily)} WEEKLY={len(weekly)} MONTHLY={len(monthly)}"
     )
-
 
 
 if __name__ == "__main__":  # Standard Python entry point guard

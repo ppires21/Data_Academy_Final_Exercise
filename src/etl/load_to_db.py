@@ -52,7 +52,7 @@ SCHEMA = cfg["db_schema"]
 # -----------------------
 def get_engine():
     url = build_db_url(cfg)
-    #mask actual password from logs using cfg
+    # mask actual password from logs using cfg
     pwd = str(cfg["database"]["password"])
     safe_url = url.replace(pwd, "***")
     log.info(f"Connecting to: {safe_url}")
@@ -156,8 +156,17 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
         conn.execute(text("SET session_replication_role = replica"))
 
         conn.execute(text(f"DROP TABLE IF EXISTS {SCHEMA}.{tmp_table}"))
-        df.head(0).to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace")
-        df.to_sql(tmp_table, conn, schema=SCHEMA, index=False, if_exists="append", method="multi")
+        df.head(0).to_sql(
+            tmp_table, conn, schema=SCHEMA, index=False, if_exists="replace"
+        )
+        df.to_sql(
+            tmp_table,
+            conn,
+            schema=SCHEMA,
+            index=False,
+            if_exists="append",
+            method="multi",
+        )
 
         md = MetaData()
         target = Table(table, md, schema=SCHEMA, autoload_with=conn)
@@ -183,9 +192,13 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
         insert_cols.append("version_timestamp")
         selectable_cols.append(text("NOW()"))
 
-        insert_stmt = pg_insert(target).from_select(insert_cols, select(*selectable_cols))
+        insert_stmt = pg_insert(target).from_select(
+            insert_cols, select(*selectable_cols)
+        )
 
-        update_map = {c: getattr(insert_stmt.excluded, c) for c in df.columns if c != pk}
+        update_map = {
+            c: getattr(insert_stmt.excluded, c) for c in df.columns if c != pk
+        }
         update_map["version_timestamp"] = text("NOW()")
 
         upsert_stmt = insert_stmt.on_conflict_do_update(
@@ -201,8 +214,6 @@ def upsert_dataframe(df: pd.DataFrame, table: str, engine):
         log.info(f"Upserted {len(df)} rows into {table}")
 
     return len(df)
-
-
 
 
 # -----------------------

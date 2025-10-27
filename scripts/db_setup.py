@@ -53,6 +53,7 @@ SCHEMA = cfg["db_schema"]
 # 4️⃣ Initialize SQLAlchemy base class for ORM mapping
 Base = declarative_base()
 
+
 # To ensure that the database exists
 def ensure_database_exists(cfg):
     """
@@ -82,10 +83,14 @@ def ensure_database_exists(cfg):
             # mascarar password no log
             pw = str(cfg["database"]["password"])
             masked = admin_url.replace(pw, "***")
-            log.info(f"Ensuring database '{target_db}' exists (admin connect: {masked})")
+            log.info(
+                f"Ensuring database '{target_db}' exists (admin connect: {masked})"
+            )
 
             # AUTOCOMMIT para CREATE DATABASE fora de transação
-            admin_engine = create_engine(admin_url, future=True, isolation_level="AUTOCOMMIT")
+            admin_engine = create_engine(
+                admin_url, future=True, isolation_level="AUTOCOMMIT"
+            )
             with admin_engine.connect() as conn:
                 # Se já estivermos ligados ao próprio target_db, consideramos existente
                 if admin_db == target_db:
@@ -107,7 +112,9 @@ def ensure_database_exists(cfg):
             return  # sucesso → sair
         except Exception as e:
             last_error = e
-            log.warning(f"Admin connect via '{admin_db}' failed: {e}; trying next candidate...")
+            log.warning(
+                f"Admin connect via '{admin_db}' failed: {e}; trying next candidate..."
+            )
 
     # Se nenhum candidato funcionou, propaga o último erro
     raise last_error
