@@ -24,13 +24,13 @@ variable "environment" {                           # Ambiente (ex.: dev, demo, p
 variable "bucket_name" {                           # Prefixo base do bucket
   type        = string                             # Tipo string
   description = "Base name for the S3 bucket (a suffix will be appended)"
-  default     = "shopflow-data-bucket"             # Nome base do bucket
+  default     = "shopflow"             # Nome base do bucket
 }
 
 variable "suffix" {                                # Sufixo para garantir unicidade
   type        = string                             # Tipo string
   description = "Suffix to ensure global uniqueness of names"
-  default     = "qxz6jly"                          # Ajusta conforme necessário
+  default     = "ctw04557"                          
 }
 
 variable "alert_email" {                           # Email para subscrição SNS
