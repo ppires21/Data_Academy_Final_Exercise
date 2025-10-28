@@ -1,69 +1,66 @@
-# ---------------------------
-# main.tf
-# Provider + Recursos (S3, SNS, IAM, EventBridge, CloudWatch, Step Functions)
-# ---------------------------
+# ===================================================================
+# main.tf — Provider + S3 + SNS + IAM + EventBridge + SFN + OIDC
+# ===================================================================
 
-terraform {
-  required_version = ">= 1.5.0"                # versão mínima do Terraform
-  required_providers {                         # providers necessários
-    aws = {
-      source  = "hashicorp/aws"                # origem do provider AWS
-      version = ">= 5.0"                       # versão mínima do provider AWS
+terraform {                                   # Bloco raiz de configuração do Terraform
+  required_version = ">= 1.5.0"               # Versão mínima do Terraform
+  required_providers {                        # Provedores necessários
+    aws = {                                   # Provider AWS
+      source  = "hashicorp/aws"               # Origem do provider
+      version = ">= 5.0"                      # Versão mínima
     }
   }
 }
 
-provider "aws" {
-  region  = var.aws_region                     # região AWS (definida em variables.tf / tfvars)
-  profile = var.profile                        # profile local (para execuções fora do Actions)
+provider "aws" {                              # Provider AWS (autenticação/region)
+  region  = var.aws_region                    # Região (ex.: eu-central-1) — vem de variables.tf
+  profile = var.profile                       # Profile local (só usado se correres localmente)
 }
 
 # ---------------------------
 # S3: Bucket de dados
 # ---------------------------
 
-locals {
-  bucket_final_name = "${var.bucket_name}-${var.suffix}"  # nome globalmente único do bucket
-  bucket_uri        = "s3://${local.bucket_final_name}"   # URI útil para outputs
+locals {                                      # Variáveis locais
+  bucket_final_name = "${var.bucket_name}-${var.suffix}" # Nome único do bucket
+  bucket_uri        = "s3://${local.bucket_final_name}"  # URI do bucket
 }
 
-resource "aws_s3_bucket" "data_bucket" {
-  bucket = local.bucket_final_name              # nome do bucket
+resource "aws_s3_bucket" "data_bucket" {      # Recurso Bucket S3
+  bucket = local.bucket_final_name            # Nome do bucket
 }
 
-resource "aws_s3_bucket_versioning" "data_bucket_versioning" {
-  bucket = aws_s3_bucket.data_bucket.id         # id do bucket acima
+resource "aws_s3_bucket_versioning" "data_bucket_versioning" {  # Versioning
+  bucket = aws_s3_bucket.data_bucket.id       # ID do bucket
   versioning_configuration {
-    status = "Enabled"                          # ativa versionamento
+    status = "Enabled"                         # Ativa versioning
   }
 }
 
-resource "aws_s3_bucket_server_side_encryption_configuration" "data_bucket_encryption" {
-  bucket = aws_s3_bucket.data_bucket.id         # id do bucket
+resource "aws_s3_bucket_server_side_encryption_configuration" "data_bucket_encryption" { # SSE
+  bucket = aws_s3_bucket.data_bucket.id       # ID do bucket
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"                  # encriptação no lado do servidor
+      sse_algorithm = "AES256"                # Criptografia SSE-S3
     }
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "data_bucket_block_public" {
-  bucket                  = aws_s3_bucket.data_bucket.id  # id do bucket
-  block_public_acls       = true                          # bloqueia ACLs públicas
-  block_public_policy     = true                          # bloqueia policies públicas
-  ignore_public_acls      = true                          # ignora ACLs públicas
-  restrict_public_buckets = true                          # restringe buckets públicos
+resource "aws_s3_bucket_public_access_block" "data_bucket_block_public" { # Bloqueio público
+  bucket                  = aws_s3_bucket.data_bucket.id  # ID do bucket
+  block_public_acls       = true               # Bloqueia ACLs públicas
+  block_public_policy     = true               # Bloqueia policies públicas
+  ignore_public_acls      = true               # Ignora ACLs públicas
+  restrict_public_buckets = true               # Restringe buckets públicos
 }
 
-resource "aws_s3_bucket_lifecycle_configuration" "data_bucket_lifecycle" {
-  bucket = aws_s3_bucket.data_bucket.id         # id do bucket
+resource "aws_s3_bucket_lifecycle_configuration" "data_bucket_lifecycle" { # Lifecycle
+  bucket = aws_s3_bucket.data_bucket.id       # ID do bucket
   rule {
-    id     = "expire-old-logs"                  # id da regra
-    status = "Enabled"                          # ativa a regra
-    filter {}                                   # sem filtro (aplica a tudo)
-    expiration {
-      days = 90                                 # expira objetos com >90 dias
-    }
+    id     = "expire-old-logs"                # ID da regra
+    status = "Enabled"                        # Ativa a regra
+    filter {}                                 # Sem filtro (aplica a tudo)
+    expiration { days = 90 }                  # Expira objetos com 90 dias
   }
 }
 
@@ -71,72 +68,65 @@ resource "aws_s3_bucket_lifecycle_configuration" "data_bucket_lifecycle" {
 # SNS: Alertas
 # ---------------------------
 
-resource "aws_sns_topic" "alerts" {
-  name = "shopflow-alerts"                      # nome do tópico SNS
+resource "aws_sns_topic" "alerts" {           # Tópico SNS para alertas
+  name = "shopflow-alerts"                    # Nome do tópico
 }
 
-resource "aws_sns_topic_subscription" "alerts_email" {
-  count     = length(var.alert_email) > 0 ? 1 : 0  # cria só se existir email
-  topic_arn = aws_sns_topic.alerts.arn             # ARN do tópico SNS
-  protocol  = "email"                               # protocolo de subscrição
-  endpoint  = var.alert_email                       # email que recebe alertas
+resource "aws_sns_topic_subscription" "alerts_email" { # Subscrição por email (opcional)
+  count     = length(var.alert_email) > 0 ? 1 : 0      # Cria só se foi definido email
+  topic_arn = aws_sns_topic.alerts.arn        # ARN do tópico
+  protocol  = "email"                          # Protocolo email
+  endpoint  = var.alert_email                  # Email destino
 }
 
 # ---------------------------
 # Step Functions: IAM Role + Policy
 # ---------------------------
 
-data "aws_iam_policy_document" "sfn_assume_role" {
+data "aws_iam_policy_document" "sfn_assume_role" { # Trust policy da role de execução da SFN
   statement {
-    actions = ["sts:AssumeRole"]                # permite a assunção da role
+    actions = ["sts:AssumeRole"]              # Permite STS:AssumeRole
     principals {
-      type        = "Service"                   # principal é um serviço AWS
-      identifiers = ["states.amazonaws.com"]    # serviço Step Functions
+      type        = "Service"                 # Tipo principal = Service
+      identifiers = ["states.amazonaws.com"]  # Serviço Step Functions
     }
   }
 }
 
-resource "aws_iam_role" "sfn_role" {
-  name               = "shopflow-sfn-role"      # nome da role de execução da SFN
-  assume_role_policy = data.aws_iam_policy_document.sfn_assume_role.json  # trust policy
-  # (sem tags para não exigir iam:TagRole)
+resource "aws_iam_role" "sfn_role" {          # Role de execução da Step Function
+  name               = "shopflow-sfn-role"    # Nome da role
+  assume_role_policy = data.aws_iam_policy_document.sfn_assume_role.json # Trust policy
 }
 
-data "aws_iam_policy_document" "sfn_policy" {
+data "aws_iam_policy_document" "sfn_policy" { # Policy com permissões da SFN
   statement {
-    actions = [                                 # permissões de logs
-      "logs:CreateLogGroup",
-      "logs:CreateLogStream",
-      "logs:PutLogEvents"
-    ]
-    resources = ["*"]                           # pode ser afinado mais tarde
+    actions   = ["logs:CreateLogGroup","logs:CreateLogStream","logs:PutLogEvents"] # Logs
+    resources = ["*"]                          # (podes restringir a grupos específicos)
   }
-
   statement {
-    actions   = ["lambda:InvokeFunction"]       # permitir invocar Lambdas
-    resources = ["*"]                           # restringe mais tarde às tuas Lambdas
+    actions   = ["lambda:InvokeFunction"]      # Permite invocar Lambdas (placeholder)
+    resources = ["*"]                          # (restringe aos ARNs quando existirem)
   }
 }
 
-resource "aws_iam_policy" "sfn_policy" {
-  name   = "shopflow-sfn-policy"                # nome da policy gerida
-  policy = data.aws_iam_policy_document.sfn_policy.json  # JSON da policy
+resource "aws_iam_policy" "sfn_policy" {      # Política gerida para a SFN
+  name   = "shopflow-sfn-policy"               # Nome da policy
+  policy = data.aws_iam_policy_document.sfn_policy.json # Documento JSON
 }
 
-resource "aws_iam_role_policy_attachment" "sfn_role_attach" {
-  role       = aws_iam_role.sfn_role.name       # role de execução da SFN
-  policy_arn = aws_iam_policy.sfn_policy.arn    # anexa a policy acima
+resource "aws_iam_role_policy_attachment" "sfn_role_attach" { # Anexa policy à role
+  role       = aws_iam_role.sfn_role.name      # Nome da role SFN
+  policy_arn = aws_iam_policy.sfn_policy.arn   # ARN da policy
 }
 
 # ---------------------------
 # Step Function (State Machine)
 # ---------------------------
 
-resource "aws_sfn_state_machine" "shopflow_main" {
-  name     = "shopflow-main"                    # nome da state machine
-  role_arn = aws_iam_role.sfn_role.arn          # role de execução da SFN
-
-  definition = jsonencode({                      # definição ASL (simples Pass)
+resource "aws_sfn_state_machine" "shopflow_main" { # State Machine SFN
+  name     = "shopflow-main"               # Nome da SFN
+  role_arn = aws_iam_role.sfn_role.arn     # Role de execução
+  definition = jsonencode({                 # Definição em ASL (JSON)
     Comment = "ShopFlow simple state machine"
     StartAt = "FirstStep"
     States = {
@@ -153,59 +143,58 @@ resource "aws_sfn_state_machine" "shopflow_main" {
 # IAM: Role e Policy para o EventBridge iniciar a Step Function
 # ---------------------------
 
-data "aws_iam_policy_document" "events_to_sfn_assume" {
+data "aws_iam_policy_document" "events_to_sfn_assume" { # Trust policy da role usada pelo EventBridge
   statement {
-    actions = ["sts:AssumeRole"]                # EventBridge assume esta role
+    actions = ["sts:AssumeRole"]             # EventBridge assume esta role
     principals {
-      type        = "Service"                   # serviço AWS
-      identifiers = ["events.amazonaws.com"]    # EventBridge
+      type        = "Service"                # Tipo principal = Service
+      identifiers = ["events.amazonaws.com"] # Serviço EventBridge
     }
   }
 }
 
-data "aws_iam_policy_document" "events_to_sfn_policy" {
+data "aws_iam_policy_document" "events_to_sfn_policy" {  # Permissões: EventBridge -> StartExecution
   statement {
-    actions   = ["states:StartExecution"]       # permite iniciar execuções
-    resources = [aws_sfn_state_machine.shopflow_main.arn]  # apenas esta SFN
+    actions   = ["states:StartExecution"]    # Pode arrancar execuções da SFN
+    resources = [aws_sfn_state_machine.shopflow_main.arn] # Só esta SFN
   }
 }
 
-resource "aws_iam_role" "events_to_sfn" {
-  name               = "shopflow-events-to-sfn" # role usada pelo EventBridge Target
-  assume_role_policy = data.aws_iam_policy_document.events_to_sfn_assume.json
-  # (sem tags para não exigir iam:TagRole)
+resource "aws_iam_role" "events_to_sfn" {    # Role que o EventBridge usa para invocar a SFN
+  name               = "shopflow-events-to-sfn"           # Nome da role
+  assume_role_policy = data.aws_iam_policy_document.events_to_sfn_assume.json # Trust policy
 }
 
-resource "aws_iam_policy" "events_to_sfn" {
-  name   = "shopflow-events-to-sfn"             # nome da policy
-  policy = data.aws_iam_policy_document.events_to_sfn_policy.json
+resource "aws_iam_policy" "events_to_sfn" {  # Policy anexada à role do EventBridge
+  name   = "shopflow-events-to-sfn"          # Nome da policy
+  policy = data.aws_iam_policy_document.events_to_sfn_policy.json # Documento JSON
 }
 
-resource "aws_iam_role_policy_attachment" "events_to_sfn" {
-  role       = aws_iam_role.events_to_sfn.name  # role acima
-  policy_arn = aws_iam_policy.events_to_sfn.arn # anexa policy de StartExecution
+resource "aws_iam_role_policy_attachment" "events_to_sfn" { # Anexa a policy à role
+  role       = aws_iam_role.events_to_sfn.name   # Nome da role
+  policy_arn = aws_iam_policy.events_to_sfn.arn  # ARN da policy
 }
 
 # ---------------------------
 # EventBridge: regra diária que dispara a Step Function
 # ---------------------------
 
-resource "aws_cloudwatch_event_rule" "daily" {
-  name                = "shopflow-daily-schedule"   # nome da regra
-  schedule_expression = "cron(0 2 * * ? *)"         # 02:00 UTC diário
-  description         = "Trigger ShopFlow Step Function daily"
+resource "aws_cloudwatch_event_rule" "daily" { # Regra EventBridge com cron diário
+  name                = "shopflow-daily-schedule"  # Nome da regra
+  schedule_expression = "cron(0 2 * * ? *)"       # 02:00 UTC todos os dias
+  description         = "Trigger ShopFlow Step Function daily" # Descrição
 }
 
-resource "aws_cloudwatch_event_target" "daily_target" {
-  rule      = aws_cloudwatch_event_rule.daily.name  # liga à regra acima
-  target_id = "sfn-start"                           # id do target
-  arn       = aws_sfn_state_machine.shopflow_main.arn  # alvo = SFN
-  role_arn  = aws_iam_role.events_to_sfn.arn        # role que o target assume
+resource "aws_cloudwatch_event_target" "daily_target" { # Alvo da regra: a SFN
+  rule      = aws_cloudwatch_event_rule.daily.name      # Nome da regra
+  target_id = "sfn-start"                               # ID do alvo
+  arn       = aws_sfn_state_machine.shopflow_main.arn   # ARN da SFN
+  role_arn  = aws_iam_role.events_to_sfn.arn            # Role que o EventBridge irá assumir
 
-  input = jsonencode({                               # payload de exemplo
-    etlFunctionArn = "REPLACE_WITH_ETL_LAMBDA_ARN"   # placeholder ETL
-    dqFunctionArn  = "REPLACE_WITH_DQ_LAMBDA_ARN"    # placeholder DQ
-    notifyTopicArn = aws_sns_topic.alerts.arn        # envia ARN do SNS
+  input = jsonencode({                                   # Exemplo de input (placeholders)
+    etlFunctionArn = "REPLACE_WITH_ETL_LAMBDA_ARN"
+    dqFunctionArn  = "REPLACE_WITH_DQ_LAMBDA_ARN"
+    notifyTopicArn = aws_sns_topic.alerts.arn
   })
 }
 
@@ -213,96 +202,102 @@ resource "aws_cloudwatch_event_target" "daily_target" {
 # CloudWatch: Alarmes e Dashboard
 # ---------------------------
 
-resource "aws_cloudwatch_metric_alarm" "sfn_failures" {
-  alarm_name          = "shopflow-state-machine-failures"     # nome do alarme
-  alarm_description   = "Alerts when Step Functions executions fail"
-  namespace           = "AWS/States"                          # namespace métrica
-  metric_name         = "ExecutionsFailed"                    # métrica de falhas
-  statistic           = "Sum"                                 # sumariza falhas
-  period              = 300                                   # janela 5 min
-  evaluation_periods  = 1                                     # 1 período
-  threshold           = 1                                     # >=1 falha
-  comparison_operator = "GreaterThanOrEqualToThreshold"       # operador
+resource "aws_cloudwatch_metric_alarm" "sfn_failures" { # Alarme para falhas da SFN
+  alarm_name          = "shopflow-state-machine-failures"     # Nome do alarme
+  alarm_description   = "Alerts when Step Functions executions fail" # Descrição
+  namespace           = "AWS/States"                           # Namespace métrica
+  metric_name         = "ExecutionsFailed"                     # Métrica
+  statistic           = "Sum"                                  # Estatística
+  period              = 300                                    # Janela 5 min
+  evaluation_periods  = 1                                      # Nº períodos
+  threshold           = 1                                      # Threshold
+  comparison_operator = "GreaterThanOrEqualToThreshold"        # Condição
 
-  dimensions = {
-    StateMachineArn = aws_sfn_state_machine.shopflow_main.arn # dimensão = SFN
+  dimensions = {                                              # Dimensão: SFN alvo
+    StateMachineArn = aws_sfn_state_machine.shopflow_main.arn
   }
 
-  alarm_actions = [aws_sns_topic.alerts.arn]                  # envia alerta
-  ok_actions    = [aws_sns_topic.alerts.arn]                  # notifica OK
+  alarm_actions = [aws_sns_topic.alerts.arn]                  # Notifica SNS quando alarma
+  ok_actions    = [aws_sns_topic.alerts.arn]                  # Notifica SNS quando OK
 }
 
-resource "aws_cloudwatch_dashboard" "main" {
-  dashboard_name = "ShopFlow-Pipeline"                        # nome do dashboard
-  dashboard_body = file("${path.module}/../../monitoring/cloudwatch_dashboard.json")  # JSON externo
+resource "aws_cloudwatch_dashboard" "main" { # Dashboard (ficheiro JSON externo)
+  dashboard_name = "ShopFlow-Pipeline"       # Nome do dashboard
+  dashboard_body = file("${path.module}/../../monitoring/cloudwatch_dashboard.json") # Caminho
 }
 
 # ---------------------------
-# GitHub OIDC + Role usada pelo GitHub Actions (CORRIGIDO)
+# GitHub OIDC + Role usada pelo GitHub Actions (corrigido)
 # ---------------------------
 
-# Lê o OIDC Provider público do GitHub (não cria/alterar — evita 403)
-data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"  # URL do emissor OIDC
+resource "aws_iam_openid_connect_provider" "github" {   # Provedor OIDC do GitHub
+  url = "https://token.actions.githubusercontent.com"   # URL do emissor OIDC (tem de ter https://)
+
+  client_id_list  = ["sts.amazonaws.com"]               # Audience aceitável
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"] # Thumbprint do cert
+
+  lifecycle { prevent_destroy = true }                  # Evita destruição acidental
 }
 
-# Trust policy para o GitHub Actions (subject alinhado ao teu repo/branch)
-data "aws_iam_policy_document" "gh_trust" {
+data "aws_caller_identity" "current" {}                 # Dados da conta (opcional, útil noutros outputs)
+
+data "aws_iam_policy_document" "gh_trust" {             # Trust policy para a role assumida pelo Actions
   statement {
-    sid     = "AllowGitHubOIDC"                   # identificador da regra
-    actions = ["sts:AssumeRoleWithWebIdentity"]   # permite AssumeRole via OIDC
+    sid     = "AllowGitHubOIDC"                         # Identificador do statement
+    actions = ["sts:AssumeRoleWithWebIdentity"]         # Ação necessária para OIDC
 
+    principals {
+      type        = "Federated"                         # Tipo principal federado
+      identifiers = [aws_iam_openid_connect_provider.github.arn] # OIDC provider acima
+    }
+
+    # Emissor e audience do token OIDC devem corresponder
     condition {
-      test     = "StringEquals"                   # emissor tem de ser este URL
+      test     = "StringEquals"                         # Comparação exata
       variable = "token.actions.githubusercontent.com:iss"
       values   = ["https://token.actions.githubusercontent.com"]
     }
-
     condition {
-      test     = "StringEquals"                   # audiência tem de ser STS
+      test     = "StringEquals"                         # Comparação exata
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
 
-    # SUBJECT CORRETO para ESTE repositório e branch main:
-    # formato: repo:OWNER/REPO:ref:refs/heads/BRANCH
+    # SUBJECT do token deve corresponder ao TEU repositório/branch
     condition {
-      test     = "StringLike"
+      test     = "StringLike"                           # Aceita padrões com wildcard
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:ppires21/Data_Academy_Final_Exercise:ref:refs/heads/main"]
-    }
-
-    principals {
-      type        = "Federated"                   # principal federado (OIDC)
-      identifiers = [data.aws_iam_openid_connect_provider.github.arn]  # ARN do provider lido acima
+      values = [
+        "repo:ppires21/Data_Academy_Final_Exercise:ref:refs/heads/main",  # branch main
+        "repo:ppires21/Data_Academy_Final_Exercise:ref:refs/heads/*",     # (opcional) outras branches
+        "repo:ppires21/Data_Academy_Final_Exercise:ref:refs/pull/*/merge" # (opcional) PRs
+      ]
     }
   }
 }
 
-# Role que o GitHub Actions vai assumir
-resource "aws_iam_role" "github_actions" {
-  name               = "github-actions-deploy-role"   # nome da role
+resource "aws_iam_role" "github_actions" {              # Role que o GitHub Actions vai assumir
+  name               = "github-actions-deploy-role"     # Nome da role
   description        = "Role assumida pelo GitHub Actions (OIDC) para aplicar Terraform."
-  assume_role_policy = data.aws_iam_policy_document.gh_trust.json  # trust policy construída acima
+  assume_role_policy = data.aws_iam_policy_document.gh_trust.json # Trust policy acima
 }
 
-# Dá permissões amplas (podes afinar mais tarde)
-resource "aws_iam_role_policy_attachment" "github_poweruser" {
-  role       = aws_iam_role.github_actions.name       # role do Actions
-  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"  # política gerida da AWS
+resource "aws_iam_role_policy_attachment" "github_poweruser" { # Dá permissões de trabalho
+  role       = aws_iam_role.github_actions.name         # Nome da role
+  policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess" # Política gerida (podes restringir depois)
 }
 
-# Permite ao Actions fazer iam:PassRole na role usada pelo EventBridge Target
+# Permite ao Actions fazer iam:PassRole SÓ para a role que o EventBridge usa
 data "aws_iam_policy_document" "github_allow_passrole_doc" {
   statement {
-    sid       = "AllowPassRoleToEventsToSfn"          # id da regra
-    actions   = ["iam:PassRole"]                      # ação necessária
-    resources = [aws_iam_role.events_to_sfn.arn]      # restrito à role events_to_sfn
+    sid       = "AllowPassRoleToEventsToSfn"            # ID do statement
+    actions   = ["iam:PassRole"]                        # Ação PassRole
+    resources = [aws_iam_role.events_to_sfn.arn]        # Limita à role do EventBridge
   }
 }
 
-resource "aws_iam_role_policy" "github_allow_passrole" {
-  name   = "github-allow-passrole-events-to-sfn"      # nome da policy inline
-  role   = aws_iam_role.github_actions.id             # associa à role do Actions
-  policy = data.aws_iam_policy_document.github_allow_passrole_doc.json  # JSON da policy
+resource "aws_iam_role_policy" "github_allow_passrole" { # Policy inline anexada à role do Actions
+  name   = "github-allow-passrole-events-to-sfn"         # Nome da policy
+  role   = aws_iam_role.github_actions.id                # Role alvo
+  policy = data.aws_iam_policy_document.github_allow_passrole_doc.json # Documento JSON
 }
