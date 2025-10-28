@@ -1,140 +1,88 @@
 # =========================================
 # File: .github/workflows/ci-cd.yml
-# Purpose: CI/CD pipeline with import fixes for pylint and
-#          safe fallback for missing AWS_REGION secret
+# Purpose: CI (lint/test) + CD (terraform apply) com OIDC
 # =========================================
 
-name: ci-cd
+name: ci-cd                                      # Nome do workflow
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+on:                                              # Eventos que disparam o workflow
+  push:                                          # Em cada push
+    branches: [ main ]                           # ... para a branch main
+  pull_request:                                  # Em cada PR
+    branches: [ main ]                           # ... que aponta para main
+  workflow_dispatch:                             # Permite execução manual no GitHub UI
 
-env:
-  PYTHON_VERSION: "3.12"
-  TERRAFORM_DIR: "infrastructure/terraform"
-  STATE_MACHINE_NAME: "shopflow-daily-batch"
-  STATE_MACHINE_DEF: "workflows/state_machine.yaml"
+env:                                             # Variáveis de ambiente globais do job
+  PYTHON_VERSION: "3.12"                         # Versão de Python para o CI
+  TERRAFORM_DIR: "infrastructure/terraform"      # Diretório do código Terraform
 
-jobs:
+jobs:                                            # Conjunto de jobs do workflow
 
-  # ------------------------------
-  # Continuous Integration (CI)
-  # ------------------------------
-  ci:
-    runs-on: ubuntu-latest
-    steps:
+  ci:                                            # Job de Continuous Integration
+    runs-on: ubuntu-latest                       # Runner Ubuntu
+    steps:                                       # Passos do job
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout repository                # 1) Fazer checkout do repositório
+        uses: actions/checkout@v4                #    Action oficial de checkout
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Python                      # 2) Instalar Python 3.12
+        uses: actions/setup-python@v5            #    Action oficial para Python
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: ${{ env.PYTHON_VERSION }}  #    Versão definida em env
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install black pylint pytest bandit
+      - name: Install dependencies               # 3) Instalar dependências e linters
+        run: |                                   #    Comandos shell multi-linha
+          python -m pip install --upgrade pip    #    Atualiza pip
+          pip install -r requirements.txt        #    Instala deps do projeto
+          pip install black pylint pytest bandit #    Instala ferramentas de qualidade
 
-      - name: Lint (black)
-        run: |
+      - name: Lint (black)                       # 4) Verificar formatação
+        run: |                                   #    Se falhar, imprime dica e falha
           black --check src scripts || (echo "Run: black src scripts" && exit 1)
 
-      - name: Static analysis (pylint)
+      - name: Static analysis (pylint)           # 5) Análise estática
         env:
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"  # Caminho para imports
+        run: |
+          pylint --errors-only src || (echo "Fix pylint errors" && exit 1)   # Só erros críticos
+
+      - name: Security scan (bandit)             # 6) Scan de segurança
+        run: |
+          bandit -r src -q || (echo "Fix bandit findings" && exit 1)         # Fail se encontrar issues
+
+      - name: Run tests (pytest)                 # 7) Executar testes
+        env:
+          ENV: dev                               #    Variável de ambiente de exemplo
           PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
         run: |
-          pylint --errors-only src || (echo "Fix pylint errors" && exit 1)
+          pytest -q                              #    Pytest em modo quiet
 
-      - name: Security scan (bandit)
-        run: |
-          bandit -r src -q || (echo "Fix bandit findings" && exit 1)
+  cd:                                            # Job de Continuous Deployment
+    needs: ci                                    # Só corre se o job CI tiver sucesso
+    runs-on: ubuntu-latest                       # Runner Ubuntu
+    permissions:                                 # Permissões que o job precisa
+      id-token: write                            # OBRIGATÓRIO para OIDC (assumir role na AWS)
+      contents: read                             # Ler conteúdo do repo (checkout)
 
-      - name: Run tests (pytest)
-        env:
-          ENV: dev
-          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
-        run: |
-          pytest -q
+    steps:                                       # Passos do job CD
 
-
-  # ------------------------------
-  # Continuous Deployment (CD)
-  # ------------------------------
-  cd:
-    needs: ci
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Checkout repository
+      - name: Checkout repository                # 1) Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: Debug AWS identity
-        run: aws sts get-caller-identity
-
-
-      # ------------------------------------------------------
-      # Configure AWS credentials
-      # The AWS_REGION secret is optional now — we fall back
-      # to eu-west-1 if not provided, avoiding Action failure.
-      # ------------------------------------------------------
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials          # 2) Assume a role via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          # ✅ Use provided secret if it exists, otherwise default to eu-west-1
-          aws-region: ${{ secrets.AWS_REGION || 'eu-west-1' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}  # ARN da role (define em Secrets)
+          aws-region: ${{ secrets.AWS_REGION }}              # Região (define em Secrets)
 
-      # Terraform deployment
-      - name: Terraform init/plan/apply
-        working-directory: ${{ env.TERRAFORM_DIR }}
-        run: |
-          terraform init
-          terraform plan -out=tfplan
-          terraform apply -auto-approve tfplan
+      - name: Who am I? (debug)                  # 3) Confirmar identidade AWS usada
+        run: aws sts get-caller-identity         #    Mostra a conta/role assumida
 
-      # Install yq to process YAML
-      - name: Install yq
-        run: |
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.1/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-
-      # Convert AWS Step Function definition from YAML to JSON
-      - name: Convert ASL YAML → JSON
-        run: |
-          yq -o=json '.' "${{ env.STATE_MACHINE_DEF }}" > /tmp/state_machine.json
-          echo "Converted YAML to JSON at /tmp/state_machine.json"
-
-      # Create or update the Step Function state machine
-      - name: Create/Update Step Function
+      - name: Terraform init/plan/apply          # 4) Aplicar o Terraform
+        working-directory: ${{ env.TERRAFORM_DIR }} #    Diretório do Terraform
         env:
-          STATE_MACHINE_ARN: ${{ secrets.STATE_MACHINE_ARN }}
-          STATE_MACHINE_ROLE_ARN: ${{ secrets.SFN_ROLE_ARN }}
-        run: |
-          if [ -z "$STATE_MACHINE_ARN" ]; then
-            aws stepfunctions create-state-machine \
-              --name "${{ env.STATE_MACHINE_NAME }}" \
-              --role-arn "$STATE_MACHINE_ROLE_ARN" \
-              --definition file:///tmp/state_machine.json
-          else
-            aws stepfunctions update-state-machine \
-              --state-machine-arn "$STATE_MACHINE_ARN" \
-              --definition file:///tmp/state_machine.json \
-              --role-arn "$STATE_MACHINE_ROLE_ARN"
-          fi
-
-      # Tag release for traceability
-      - name: Tag release
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git tag -f "deploy-${GITHUB_SHA::7}"
-          git push -f origin "deploy-${GITHUB_SHA::7}"
+          TF_VAR_create_events_target: "true"
+        run: |                                   #    Pipeline Terraform standard
+          terraform init                         #    Inicializa módulos/provedor/backend
+          terraform plan -out=tfplan             #    Gera plano e grava em ficheiro
+          terraform apply -auto-approve tfplan   #    Aplica o plano sem prompt

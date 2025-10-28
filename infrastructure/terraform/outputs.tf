@@ -43,7 +43,16 @@ output "dashboard_name" {                          # Nome do dashboard
   value       = aws_cloudwatch_dashboard.main.dashboard_name
 }
 
-output "state_machine_arn" {
+output "state_machine_arn" {                       # ARN da Step Function criada
   description = "ARN of the Step Function created"
   value       = aws_sfn_state_machine.shopflow_main.arn
+}
+
+# ---------------------------
+# (NOVO) ARN da role assumida pelo GitHub Actions (para meteres no secret)
+# ---------------------------
+
+output "github_actions_role_arn" {                 # ARN da IAM Role do Actions
+  description = "ARN of the IAM Role assumed by GitHub Actions via OIDC"
+  value       = aws_iam_role.github_actions.arn
 }

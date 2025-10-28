@@ -4,38 +4,44 @@
 # ---------------------------
 
 variable "aws_region" {                            # Região AWS a usar
-  type        = string                             # Tipo string
-  description = "AWS region for all resources"     # Descrição
-  default     = "eu-central-1"                     # Valor por defeito (ex.: Frankfurt)
+  type        = string
+  description = "AWS region for all resources"
+  default     = "eu-central-1"
 }
 
-variable "profile" {                               # Nome do profile AWS (credentials)
-  type        = string                             # Tipo string
+variable "profile" {                               
+  type        = string
   description = "AWS named profile from ~/.aws/credentials"
-  default     = "data-academy"                          # Podes ajustar para o teu profile
+  default     = "data-academy"
 }
 
-variable "environment" {                           # Ambiente (ex.: dev, demo, prod)
-  type        = string                             # Tipo string
+variable "environment" {                           
+  type        = string
   description = "Deployment environment (dev, demo, prod, ...)"
-  default     = "demo"                             # Valor por defeito
+  default     = "demo"
 }
 
-variable "bucket_name" {                           # Prefixo base do bucket
-  type        = string                             # Tipo string
+variable "bucket_name" {                           
+  type        = string
   description = "Base name for the S3 bucket (a suffix will be appended)"
-  default     = "shopflow"             # Nome base do bucket
+  default     = "shopflow"
 }
 
-variable "suffix" {                                # Sufixo para garantir unicidade
-  type        = string                             # Tipo string
+variable "suffix" {                                
+  type        = string
   description = "Suffix to ensure global uniqueness of names"
-  default     = "ctw04557"                          
+  default     = "ctw04557"
 }
 
-variable "alert_email" {                           # Email para subscrição SNS
-  type        = string                             # Tipo string
+variable "alert_email" {                           
+  type        = string
   description = "Email to receive alerts via SNS (leave empty to disable)"
-  default     = ""                                 # Vazio desativa subscrição
+  default     = ""
 }
 
+# 👇 NOVO: controla se o EventBridge Target é criado neste apply
+variable "create_events_target" {
+  type        = bool
+  description = "Create EventBridge target that needs iam:PassRole. Set false locally; true in CI/CD."
+  default     = false
+}
