@@ -3,86 +3,97 @@
 # Purpose: CI (lint/test) + CD (terraform apply) com OIDC
 # =========================================
 
-name: ci-cd                                      # Nome do workflow
+name: ci-cd                                   # nome do workflow no GitHub
 
-on:                                              # Eventos que disparam o workflow
-  push:                                          # Em cada push
-    branches: [ main ]                           # ... para a branch main
-  pull_request:                                  # Em cada PR
-    branches: [ main ]                           # ... que aponta para main
-  workflow_dispatch:                             # Permite execução manual no GitHub UI
+on:                                           # eventos que disparam o workflow
+  push:                                       # em push
+    branches: [ main ]                        # na branch main
+  pull_request:                               # em pull requests
+    branches: [ main ]                        # para a branch main
+  workflow_dispatch:                          # execução manual pela UI
 
-env:                                             # Variáveis de ambiente globais do job
-  PYTHON_VERSION: "3.12"                         # Versão de Python para o CI
-  TERRAFORM_DIR: "infrastructure/terraform"      # Diretório do código Terraform
+env:                                          # variáveis globais
+  PYTHON_VERSION: "3.12"                      # versão de Python para CI
+  TERRAFORM_DIR: "infrastructure/terraform"   # pasta do Terraform
 
-jobs:                                            # Conjunto de jobs do workflow
+jobs:
 
-  ci:                                            # Job de Continuous Integration
-    runs-on: ubuntu-latest                       # Runner Ubuntu
-    steps:                                       # Passos do job
-
-      - name: Checkout repository                # 1) Fazer checkout do repositório
-        uses: actions/checkout@v4                #    Action oficial de checkout
-
-      - name: Set up Python                      # 2) Instalar Python 3.12
-        uses: actions/setup-python@v5            #    Action oficial para Python
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}  #    Versão definida em env
-
-      - name: Install dependencies               # 3) Instalar dependências e linters
-        run: |                                   #    Comandos shell multi-linha
-          python -m pip install --upgrade pip    #    Atualiza pip
-          pip install -r requirements.txt        #    Instala deps do projeto
-          pip install black pylint pytest bandit #    Instala ferramentas de qualidade
-
-      - name: Lint (black)                       # 4) Verificar formatação
-        run: |                                   #    Se falhar, imprime dica e falha
-          black --check src scripts || (echo "Run: black src scripts" && exit 1)
-
-      - name: Static analysis (pylint)           # 5) Análise estática
-        env:
-          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"  # Caminho para imports
-        run: |
-          pylint --errors-only src || (echo "Fix pylint errors" && exit 1)   # Só erros críticos
-
-      - name: Security scan (bandit)             # 6) Scan de segurança
-        run: |
-          bandit -r src -q || (echo "Fix bandit findings" && exit 1)         # Fail se encontrar issues
-
-      - name: Run tests (pytest)                 # 7) Executar testes
-        env:
-          ENV: dev                               #    Variável de ambiente de exemplo
-          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
-        run: |
-          pytest -q                              #    Pytest em modo quiet
-
-  cd:                                            # Job de Continuous Deployment
-    needs: ci                                    # Só corre se o job CI tiver sucesso
-    runs-on: ubuntu-latest                       # Runner Ubuntu
-    permissions:                                 # Permissões que o job precisa
-      id-token: write                            # OBRIGATÓRIO para OIDC (assumir role na AWS)
-      contents: read                             # Ler conteúdo do repo (checkout)
-
-    steps:                                       # Passos do job CD
-
-      - name: Checkout repository                # 1) Checkout do repositório
+  ci:                                         # job de integração contínua
+    runs-on: ubuntu-latest                    # runner Linux
+    steps:
+      - name: Checkout repository             # obtém o código
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials          # 2) Assume a role via OIDC
+      - name: Set up Python                   # instala Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}   # usa var global
+
+      - name: Install dependencies            # instala deps + linters
+        run: |
+          python -m pip install --upgrade pip         # atualiza pip
+          pip install -r requirements.txt             # deps do projeto
+          pip install black pylint pytest bandit      # ferramentas qualidade
+
+      - name: Lint (black)                    # verifica formatação
+        run: |
+          black --check src scripts || (echo "Run: black src scripts" && exit 1)
+
+      - name: Static analysis (pylint)        # análise estática
+        env:
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"  # para imports locais
+        run: |
+          pylint --errors-only src || (echo "Fix pylint errors" && exit 1)
+
+      - name: Security scan (bandit)          # scan de segurança
+        run: |
+          bandit -r src -q || (echo "Fix bandit findings" && exit 1)
+
+      - name: Run tests (pytest)              # testes unitários
+        env:
+          ENV: dev                                     # exemplo de env
+          PYTHONPATH: "${{ github.workspace }}:${{ github.workspace }}/src"
+        run: |
+          pytest -q
+
+  cd:                                         # job de deployment
+    needs: ci                                 # só corre se CI passar
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write                         # OBRIGATÓRIO para OIDC (troca de token)
+      contents: read                          # ler o repo
+
+    steps:
+      - name: Checkout repository             # obtém o código
+        uses: actions/checkout@v4
+
+      # Assume a role na AWS via OIDC (usa secrets do repositório)
+      # - role-to-assume: ARN da role criada pelo Terraform (github-actions-deploy-role)
+      # - aws-region: região onde estão os teus recursos
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}  # ARN da role (define em Secrets)
-          aws-region: ${{ secrets.AWS_REGION }}              # Região (define em Secrets)
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}  # ex.: arn:aws:iam::476114120388:role/github-actions-deploy-role
+          aws-region:     ${{ secrets.AWS_REGION }}          # ex.: eu-central-1
 
-      - name: Who am I? (debug)                  # 3) Confirmar identidade AWS usada
-        run: aws sts get-caller-identity         #    Mostra a conta/role assumida
+      # Passo de debug para ver quem somos na AWS
+      - name: Who am I? (debug)
+        run: |
+          aws sts get-caller-identity                         # mostra conta/role assumida
+          aws s3 ls || true                                   # lista buckets (melhor para ver se autenticou)
 
-      - name: Terraform init/plan/apply          # 4) Aplicar o Terraform
-        working-directory: ${{ env.TERRAFORM_DIR }} #    Diretório do Terraform
+      # Instalar Terraform (fixar versão ajuda na reprodutibilidade)
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.6
+
+      # Executar Terraform com o backend/config padrão do repositório
+      - name: Terraform init/plan/apply
+        working-directory: ${{ env.TERRAFORM_DIR }}           # pasta do Terraform
         env:
-          TF_VAR_create_events_target: "true"
-        run: |                                   #    Pipeline Terraform standard
-          terraform init                         #    Inicializa módulos/provedor/backend
-          terraform plan -out=tfplan             #    Gera plano e grava em ficheiro
-          terraform apply -auto-approve tfplan   #    Aplica o plano sem prompt
+          TF_VAR_profile: ""                                  # garante que o provider não tenta usar ~/.aws/credentials
+        run: |
+          terraform init                                      # inicializa providers/backend
+          terraform plan -out=tfplan                          # cria um plano (ficheiro tfplan)
+          terraform apply -auto-approve tfplan                # aplica o plano sem pedir confirmação
